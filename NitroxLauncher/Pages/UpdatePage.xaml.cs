@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -9,7 +9,7 @@ namespace NitroxLauncher.Pages
 {
     public partial class UpdatePage : PageBase
     {
-        public static readonly Uri WEBSITE_LINK = new("https://nitrox.rux.gg/download");
+        public static readonly Uri WEBSITE_LINK = new("https://google.com");
 
         private readonly ObservableCollection<NitroxChangelog> nitroxChangelogs = new();
 

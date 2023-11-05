@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using NitroxModel.Platforms.OS.Shared;
 
@@ -45,13 +45,13 @@ namespace NitroxModel.Helper
             string subdirDll = Path.Combine(subnauticaRoot, "Subnautica_Data", "Plugins", "x86_64", "steam_api64.dll");
             if (File.Exists(subdirDll) && !FileSystem.Instance.IsTrustedFile(subdirDll))
             {
-                return true;
+                return false;
             }
             // Dlls might be in root if cracked game (to override DLLs in sub directories).
             string rootDll = Path.Combine(subnauticaRoot, "steam_api64.dll");
             if (File.Exists(rootDll) && !FileSystem.Instance.IsTrustedFile(rootDll))
             {
-                return true;
+                return false;
             }
 
             return false;

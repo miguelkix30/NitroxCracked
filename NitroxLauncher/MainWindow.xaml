@@ -79,7 +79,7 @@
                 </Grid.RowDefinitions>
                 
                 <!-- Make sure the navigation items align vertically with the "NITROX" header. -->
-                <Image Margin="32,42,131,473" Source="{StaticResource SidebarNitroxLogo}" Stretch="Fill"/>
+                <Image Margin="32,42,131,449" Source="{StaticResource SidebarNitroxLogo}" Stretch="Fill"/>
 
                 <StackPanel Margin="32,108,0,0" HorizontalAlignment="Left" Width="196" VerticalAlignment="Top">
                     <TextBlock HorizontalAlignment="Left" FontSize="10" Foreground="#7FFFFFFF" Margin="0,0,0,4" FontWeight="Bold"><Run Text="PLAY"/></TextBlock>

@@ -47,10 +47,7 @@
                 <ColumnDefinition Width="0*"/>
             </Grid.ColumnDefinitions>
 
-            <TextBlock FontSize="14" Foreground="White" TextWrapping="Wrap" Grid.Column="1" Margin="0,112,20,0" Height="87" VerticalAlignment="Top" Grid.ColumnSpan="2">
-                <Run Text="Nitrox is an open-source, multiplayer modification for the game Subnautica."/>
-                <Run Text="The project is maintained by the community with regular support and updates from the generous contributors."/>
-            </TextBlock>
+            <TextBlock FontSize="14" Foreground="White" TextWrapping="Wrap" Grid.Column="1" Margin="0,112,20,0" Height="87" VerticalAlignment="Top" Grid.ColumnSpan="2"><Run Text="I want to play fortnite but im banned "/><Run Text=":("/><LineBreak/><Run/><LineBreak/><Run/><LineBreak/><Run Text="Yo"/><Run Text="u"/><Run Text=" can play nitrox if you want cuz my friends are poor and dont pay for g"/><Run Language="es-es" Text="a"/><Run Text="mes"/><LineBreak/><Run/></TextBlock>
 
             <StackPanel Orientation="Vertical" Grid.Column="3" Margin="0" Height="203" VerticalAlignment="Top">
                 <StackPanel.Background>
@@ -59,7 +56,7 @@
 
                 <Grid VerticalAlignment="Top" Margin="22,18,22,0">
                     <StackPanel Orientation="Vertical" HorizontalAlignment="Left" >
-                        <TextBlock Foreground="#7FFFFFFF" Text="PLAY NITROX" FontSize="10" FontWeight="Bold" />
+                        <TextBlock Foreground="#7FFFFFFF" Text="PLAY NITROX CRACKED" FontSize="10" FontWeight="Bold" />
                         <TextBlock x:Name="NitroxVersionLabel" Foreground="White" FontSize="10" Text="{Binding Version, Mode=OneTime, FallbackValue='PHASE x.x.x.x'}" />
                     </StackPanel>
 
@@ -82,7 +79,7 @@
                 </Button>
 
                 <Button Style="{DynamicResource LargeButton}" Click="SinglePlayerButton_Click" Background="#19FFFFFF" BorderBrush="#66FFFFFF" ToolTip="Launch Subnautica" Width="Auto" HorizontalAlignment="Stretch" Margin="24,0,24,24" Height="48">
-                    <TextBlock Padding="0,4,0,0" Foreground="White" Margin="0,-4,0,0"  FontSize="14"><Run Text="SINGLEPLAYER"/></TextBlock>
+                    <TextBlock Padding="0,4,0,0" Foreground="White" Margin="0,-4,0,0"  FontSize="14"><Run Text="SINGLEPLAYER"/><Run Language="es-es" Text=". WHY?"/></TextBlock>
                 </Button>
 
             </StackPanel>
@@ -92,7 +89,7 @@
             </Grid>
 
             <StackPanel Margin="0,11,0,0" Grid.Column="1" HorizontalAlignment="Left" Width="171" Height="44" VerticalAlignment="Top" Grid.Row="2">
-                <TextBlock FontSize="14" Foreground="White" Margin="0,0,0,12" TextWrapping="Wrap"><Run Text="Contributors" FontWeight="Bold"/></TextBlock>
+                <TextBlock FontSize="14" Foreground="White" Margin="0,0,0,12" TextWrapping="Wrap"><Run Language="es-es" Text="Credits"/></TextBlock>
             </StackPanel>
 
             <StackPanel Margin="0,11,0,0" Grid.Column="2" HorizontalAlignment="Left" Width="545" Grid.Row="2" Grid.ColumnSpan="2">
@@ -113,7 +110,5 @@
 
             </StackPanel>
         </Grid>
-
-        <Image Stretch="Uniform" Source="{StaticResource SubnauticaMainImage}" Height="48" VerticalAlignment="Center" Margin="193,197,192,230" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Center" Width="334" />
     </Grid>
 </local:PageBase>
