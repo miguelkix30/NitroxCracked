@@ -7,6 +7,7 @@ using NitroxClient.Communication.Packets.Processors.Abstract;
 using NitroxClient.GameLogic;
 using NitroxClient.GameLogic.Bases;
 using NitroxClient.GameLogic.Spawning.Bases;
+using NitroxClient.GameLogic.Spawning.Metadata;
 using NitroxClient.MonoBehaviours;
 using NitroxClient.Unity.Helper;
 using NitroxModel.DataStructures;
@@ -22,10 +23,12 @@ namespace NitroxClient.Communication.Packets.Processors;
 public class BuildingResyncProcessor : ClientPacketProcessor<BuildingResync>
 {
     private readonly Entities entities;
+    private readonly EntityMetadataManager entityMetadataManager;
 
-    public BuildingResyncProcessor(Entities entities)
+    public BuildingResyncProcessor(Entities entities, EntityMetadataManager entityMetadataManager)
     {
         this.entities = entities;
+        this.entityMetadataManager = entityMetadataManager;
     }
 
     public override void Process(BuildingResync packet)
@@ -121,10 +124,19 @@ public class BuildingResyncProcessor : ClientPacketProcessor<BuildingResync>
         ClearBaseChildren(@base);
         yield return BuildEntitySpawner.SetupBase(buildEntity, @base, entities);
         yield return MoonpoolManager.RestoreMoonpools(buildEntity.ChildEntities.OfType<MoonpoolEntity>(), @base);
-        yield return entities.SpawnBatchAsync(buildEntity.ChildEntities.OfType<PlayerWorldEntity>().ToList<Entity>(), true, false);
-        foreach (MapRoomEntity mapRoomEntity in buildEntity.ChildEntities.OfType<MapRoomEntity>())
+        yield return entities.SpawnBatchAsync(buildEntity.ChildEntities.OfType<PlayerWorldEntity>().ToList<Entity>(), false, false);
+
+        foreach (Entity childEntity in buildEntity.ChildEntities)
         {
-            yield return InteriorPieceEntitySpawner.RestoreMapRoom(@base, mapRoomEntity);
+            switch (childEntity)
+            {
+                case MapRoomEntity mapRoomEntity:
+                    yield return InteriorPieceEntitySpawner.RestoreMapRoom(@base, mapRoomEntity);
+                    break;
+                case BaseLeakEntity baseLeakEntity:
+                    yield return entities.SpawnEntityAsync(baseLeakEntity, true);
+                    break;
+            }
         }
     }
 
@@ -132,6 +144,7 @@ public class BuildingResyncProcessor : ClientPacketProcessor<BuildingResync>
     {
         Log.Info($"[Module RESYNC] Overwriting module with id {moduleEntity.Id}");
         ModuleEntitySpawner.ApplyModuleData(moduleEntity, constructable.gameObject);
+        entityMetadataManager.ApplyMetadata(constructable.gameObject, moduleEntity.Metadata);
         yield break;
     }
 

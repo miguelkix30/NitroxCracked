@@ -45,6 +45,11 @@ namespace NitroxServer.GameLogic
             return ConnectedPlayers().ToList();
         }
 
+        public List<Player> GetConnectedPlayersExcept(Player excludePlayer)
+        {
+            return ConnectedPlayers().Where(player => player != excludePlayer).ToList();
+        }
+
         public IEnumerable<Player> GetAllPlayers()
         {
             return allPlayersByName.Values;
@@ -258,6 +263,10 @@ namespace NitroxServer.GameLogic
         {
             initialSyncTimer.Dispose();
             PlayerCurrentlyJoining = false;
+            if (player != null)
+            {
+                BroadcastPlayerJoined(player);
+            }
 
             Log.Info($"Finished processing reservation. Remaining requests: {JoinQueue.Count}");
 
@@ -331,6 +340,12 @@ namespace NitroxServer.GameLogic
             return assetsByConnection.Values
                 .Where(assetPackage => assetPackage.Player != null)
                 .Select(assetPackage => assetPackage.Player);
+        }
+        
+        public void BroadcastPlayerJoined(Player player)
+        {
+            PlayerJoinedMultiplayerSession playerJoinedPacket = new(player.PlayerContext, player.SubRootId, player.Entity);
+            SendPacketToOtherPlayers(playerJoinedPacket, player);
         }
     }
 }
