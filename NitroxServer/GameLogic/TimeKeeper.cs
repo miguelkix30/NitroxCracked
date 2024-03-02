@@ -13,16 +13,9 @@ public class TimeKeeper
     private readonly Stopwatch stopWatch = new();
 
     /// <summary>
-    ///     Default time in Base SN is 480s
-    /// </summary>
-    public const int DEFAULT_TIME = 480;
-
-    /// <summary>
     /// Latest registered time without taking the current stopwatch time in account.
     /// </summary>
     private double elapsedTimeOutsideStopWatchMs;
-
-    private readonly double realTimeElapsed;
 
     /// <summary>
     /// Total elapsed time in milliseconds (adding the current stopwatch time with the latest registered time <see cref="elapsedTimeOutsideStopWatchMs"/>).
@@ -44,8 +37,6 @@ public class TimeKeeper
         get => ElapsedMilliseconds * 0.001;
         set => ElapsedMilliseconds = value * 1000;
     }
-
-    public double RealTimeElapsed => stopWatch.ElapsedMilliseconds * 0.001 + realTimeElapsed;
 
     /// <summary>
     /// Subnautica's equivalent of days.
@@ -70,14 +61,12 @@ public class TimeKeeper
     /// </remarks>
     private const int RESYNC_INTERVAL = 60;
 
-    public TimeSkippedEventHandler TimeSkipped;
-
-    public TimeKeeper(PlayerManager playerManager, double elapsedSeconds, double realTimeElapsed)
+    public TimeKeeper(PlayerManager playerManager, double elapsedSeconds)
     {
         this.playerManager = playerManager;
 
-        elapsedTimeOutsideStopWatchMs = elapsedSeconds == 0 ? TimeSpan.FromSeconds(DEFAULT_TIME).TotalMilliseconds : elapsedSeconds * 1000;
-        this.realTimeElapsed = realTimeElapsed;
+        // Default time in Base SN is 480s
+        elapsedTimeOutsideStopWatchMs = elapsedSeconds == 0 ? TimeSpan.FromSeconds(480).TotalMilliseconds : elapsedSeconds * 1000;
         ResyncTimer = MakeResyncTimer();
     }
 
@@ -122,33 +111,24 @@ public class TimeKeeper
     /// <param name="type">Time to which you want to get to.</param>
     public void ChangeTime(TimeModification type)
     {
-        double skipAmount = 0;
         switch (type)
         {
             case TimeModification.DAY:
-                skipAmount = 1200 - (ElapsedSeconds % 1200) + 600;
+                ElapsedSeconds += 1200 - ElapsedSeconds % 1200 + 600;
                 break;
             case TimeModification.NIGHT:
-                skipAmount = 1200 - (ElapsedSeconds % 1200);
+                ElapsedSeconds += 1200 - ElapsedSeconds % 1200;
                 break;
             case TimeModification.SKIP:
-                skipAmount = 600 - (ElapsedSeconds % 600);
+                ElapsedSeconds += 600 - ElapsedSeconds % 600;
                 break;
         }
-        
-        if (skipAmount > 0)
-        {
-            ElapsedSeconds += skipAmount;
-            TimeSkipped?.Invoke(skipAmount);
 
-            playerManager.SendPacketToAllPlayers(MakeTimePacket());
-        }
+        playerManager.SendPacketToAllPlayers(MakeTimePacket());
     }
 
     public TimeChange MakeTimePacket()
     {
-        return new(ElapsedSeconds, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), RealTimeElapsed);
+        return new(ElapsedSeconds, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
     }
-
-    public delegate void TimeSkippedEventHandler(double skipAmount);
 }

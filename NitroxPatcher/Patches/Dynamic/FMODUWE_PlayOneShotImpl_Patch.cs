@@ -1,8 +1,7 @@
-using System.Reflection;
+﻿using System.Reflection;
 using NitroxClient.GameLogic.FMOD;
-using NitroxModel_Subnautica.DataStructures;
-using NitroxModel.GameLogic.FMOD;
 using NitroxModel.Helper;
+using NitroxModel_Subnautica.DataStructures;
 using UnityEngine;
 
 namespace NitroxPatcher.Patches.Dynamic;
@@ -13,14 +12,14 @@ public sealed partial class FMODUWE_PlayOneShotImpl_Patch : NitroxPatch, IDynami
 
     public static bool Prefix()
     {
-        return !FMODSoundSuppressor.SuppressFMODEvents;
+        return !FMODSuppressor.SuppressFMODEvents;
     }
 
     public static void Postfix(string eventPath, Vector3 position, float volume)
     {
-        if (Resolve<FMODWhitelist>().IsWhitelisted(eventPath))
+        if (Resolve<FMODSystem>().IsWhitelisted(eventPath, out bool isGlobal, out float radius))
         {
-            Resolve<FMODSystem>().SendAssetPlay(eventPath, position.ToDto(), volume);
+            Resolve<FMODSystem>().PlayAsset(eventPath, position.ToDto(), volume, radius, isGlobal);
         }
     }
 }

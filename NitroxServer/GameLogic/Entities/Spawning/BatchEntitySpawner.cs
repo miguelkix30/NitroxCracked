@@ -1,10 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using NitroxModel.DataStructures;
 using NitroxModel.DataStructures.GameLogic;
 using NitroxModel.DataStructures.GameLogic.Entities;
 using NitroxModel.DataStructures.Unity;
-using NitroxServer.GameLogic.Unlockables;
+using NitroxModel.DataStructures.Util;
 using NitroxServer.Helper;
 using NitroxServer.Resources;
 using NitroxServer.Serialization;
@@ -15,15 +16,14 @@ public class BatchEntitySpawner : IEntitySpawner
 {
     private readonly BatchCellsParser batchCellsParser;
 
+    private readonly Dictionary<NitroxTechType, IEntityBootstrapper> customBootstrappersByTechType;
     private readonly HashSet<NitroxInt3> emptyBatches = new();
-    private readonly Dictionary<string, PrefabPlaceholdersGroupAsset> placeholdersGroupsByClassId;
-    private readonly IUwePrefabFactory prefabFactory;
-    private readonly IEntityBootstrapperManager entityBootstrapperManager;
-    private readonly PDAStateData pdaStateData;
+    private readonly Dictionary<string, PrefabPlaceholdersGroupAsset> prefabPlaceholderGroupsByClassId;
+    private readonly UwePrefabFactory prefabFactory;
 
     private readonly string seed;
 
-    private readonly IUweWorldEntityFactory worldEntityFactory;
+    private readonly UweWorldEntityFactory worldEntityFactory;
 
     private readonly object parsedBatchesLock = new object();
     private readonly object emptyBatchesLock = new object();
@@ -57,19 +57,16 @@ public class BatchEntitySpawner : IEntitySpawner
         }
     }
 
-    private static readonly NitroxQuaternion prefabZUpRotation = NitroxQuaternion.FromEuler(new(-90f, 0f, 0f));
-
-    public BatchEntitySpawner(EntitySpawnPointFactory entitySpawnPointFactory, IUweWorldEntityFactory worldEntityFactory, IUwePrefabFactory prefabFactory, List<NitroxInt3> loadedPreviousParsed, ServerProtoBufSerializer serializer,
-                              IEntityBootstrapperManager entityBootstrapperManager, Dictionary<string, PrefabPlaceholdersGroupAsset> placeholdersGroupsByClassId, PDAStateData pdaStateData, string seed)
+    public BatchEntitySpawner(EntitySpawnPointFactory entitySpawnPointFactory, UweWorldEntityFactory worldEntityFactory, UwePrefabFactory prefabFactory, List<NitroxInt3> loadedPreviousParsed, ServerProtoBufSerializer serializer,
+                              Dictionary<NitroxTechType, IEntityBootstrapper> customBootstrappersByTechType, Dictionary<string, PrefabPlaceholdersGroupAsset> prefabPlaceholderGroupsByClassId, string seed)
     {
         parsedBatches = new HashSet<NitroxInt3>(loadedPreviousParsed);
         this.worldEntityFactory = worldEntityFactory;
         this.prefabFactory = prefabFactory;
-        this.entityBootstrapperManager = entityBootstrapperManager;
-        this.placeholdersGroupsByClassId = placeholdersGroupsByClassId;
-        this.pdaStateData = pdaStateData;
-        batchCellsParser = new BatchCellsParser(entitySpawnPointFactory, serializer);
+        this.customBootstrappersByTechType = customBootstrappersByTechType;
+        this.prefabPlaceholderGroupsByClassId = prefabPlaceholderGroupsByClassId;
         this.seed = seed;
+        batchCellsParser = new BatchCellsParser(entitySpawnPointFactory, serializer);
     }
 
     public bool IsBatchSpawned(NitroxInt3 batchId)
@@ -122,65 +119,59 @@ public class BatchEntitySpawner : IEntitySpawner
         return entities;
     }
 
-    /// <inheritdoc cref="CreateEntityWithChildren" />
     private IEnumerable<Entity> SpawnEntitiesUsingRandomDistribution(EntitySpawnPoint entitySpawnPoint, List<UwePrefab> prefabs, DeterministicGenerator deterministicBatchGenerator, Entity parentEntity = null)
     {
-        // See CSVEntitySpawner.GetPrefabForSlot for reference
-        List<UwePrefab> allowedPrefabs = FilterAllowedPrefabs(prefabs, entitySpawnPoint, out float fragmentProbability, out float completeFragmentProbability);
+        List<UwePrefab> allowedPrefabs = FilterAllowedPrefabs(prefabs, entitySpawnPoint);
 
-        bool areFragmentProbabilitiesNonNull = fragmentProbability > 0f && completeFragmentProbability > 0f;
-        float probabilityMultiplier = areFragmentProbabilitiesNonNull ? (completeFragmentProbability + fragmentProbability) / fragmentProbability : 1f;
-        float weightedFragmentProbability = 0f;
-        for (int i = 0; i < allowedPrefabs.Count; i++)
-        {
-            UwePrefab prefab = allowedPrefabs[i];
-            if (areFragmentProbabilitiesNonNull && prefab.IsFragment)
-            {
-                prefab = prefab with { Probability = prefab.Probability * probabilityMultiplier };
-                allowedPrefabs[i] = prefab;
-            }
-            weightedFragmentProbability += prefab.Probability;
-        }
+        float rollingProbabilityDensity = allowedPrefabs.Sum(prefab => prefab.Probability / entitySpawnPoint.Density);
 
-        UwePrefab chosenPrefab = default;
-        if (weightedFragmentProbability > 0f)
-        {
-            float probabilityThreshold = XORRandom.NextFloat();
-            if (weightedFragmentProbability > 1f)
-            {
-                probabilityThreshold *= weightedFragmentProbability;
-            }
-            float currentProbability = 0f;
-            foreach (UwePrefab prefab in allowedPrefabs)
-            {
-                currentProbability += prefab.Probability;
-                if (currentProbability >= probabilityThreshold)
-                {
-                    chosenPrefab = prefab;
-                    break;
-                }
-            }
-        }
-
-        if (chosenPrefab.Count == 0)
+        if (rollingProbabilityDensity <= 0)
         {
             yield break;
         }
 
-        if (worldEntityFactory.TryFind(chosenPrefab.ClassId, out UweWorldEntity uweWorldEntity))
+        float randomNumber = (float)deterministicBatchGenerator.NextDouble();
+        if (rollingProbabilityDensity > 1f)
         {
-            for (int i = 0; i < chosenPrefab.Count; i++)
+            randomNumber *= rollingProbabilityDensity;
+        }
+
+        float rollingProbability = 0;
+
+        UwePrefab selectedPrefab = allowedPrefabs.FirstOrDefault(prefab =>
+        {
+            if (Math.Abs(prefab.Probability) < 0.0001)
             {
-                // Random position in sphere is only possible after first spawn, see EntitySlot.Spawn
+                return false;
+            }
+
+            float probabilityDensity = prefab.Probability / entitySpawnPoint.Density;
+
+            rollingProbability += probabilityDensity;
+
+            return rollingProbability >= randomNumber;
+        });
+
+        if (selectedPrefab == null)
+        {
+            yield break;
+        }
+
+        Optional<UweWorldEntity> opWorldEntity = worldEntityFactory.From(selectedPrefab.ClassId);
+
+        if (opWorldEntity.HasValue)
+        {
+            UweWorldEntity uweWorldEntity = opWorldEntity.Value;
+
+            for (int i = 0; i < selectedPrefab.Count; i++)
+            {
                 IEnumerable<Entity> entities = CreateEntityWithChildren(entitySpawnPoint,
-                                                                        chosenPrefab.ClassId,
+                                                                        uweWorldEntity.Scale,
                                                                         uweWorldEntity.TechType,
-                                                                        uweWorldEntity.PrefabZUp,
                                                                         uweWorldEntity.CellLevel,
-                                                                        uweWorldEntity.LocalScale,
+                                                                        selectedPrefab.ClassId,
                                                                         deterministicBatchGenerator,
-                                                                        parentEntity,
-                                                                        i > 0);
+                                                                        parentEntity);
                 foreach (Entity entity in entities)
                 {
                     yield return entity;
@@ -189,35 +180,18 @@ public class BatchEntitySpawner : IEntitySpawner
         }
     }
 
-    private List<UwePrefab> FilterAllowedPrefabs(List<UwePrefab> prefabs, EntitySpawnPoint entitySpawnPoint, out float fragmentProbability, out float completeFragmentProbability)
+    private List<UwePrefab> FilterAllowedPrefabs(List<UwePrefab> prefabs, EntitySpawnPoint entitySpawnPoint)
     {
-        List<UwePrefab> allowedPrefabs = new();
+        List<UwePrefab> allowedPrefabs = new List<UwePrefab>();
 
-        fragmentProbability = 0;
-        completeFragmentProbability = 0;
-        for (int i = 0; i < prefabs.Count; i++)
+        foreach (UwePrefab prefab in prefabs)
         {
-            UwePrefab prefab = prefabs[i];
-            // Adapted code from the while loop in CSVEntitySpawner.GetPrefabForSlot 
-            if (prefab.ClassId != "None" && worldEntityFactory.TryFind(prefab.ClassId, out UweWorldEntity uweWorldEntity) &&
-                entitySpawnPoint.AllowedTypes.Contains(uweWorldEntity.SlotType))
+            if (prefab.ClassId != "None")
             {
-                float weightedProbability = prefab.Probability / entitySpawnPoint.Density;
-                if (weightedProbability > 0)
+                Optional<UweWorldEntity> uweWorldEntity = worldEntityFactory.From(prefab.ClassId);
+
+                if (uweWorldEntity.HasValue && entitySpawnPoint.AllowedTypes.Contains(uweWorldEntity.Value.SlotType))
                 {
-                    if (prefab.IsFragment)
-                    {
-                        if (pdaStateData.ScannerComplete.Contains(uweWorldEntity.TechType))
-                        {
-                            completeFragmentProbability += weightedProbability;
-                            continue;
-                        }
-                        else
-                        {
-                            fragmentProbability += weightedProbability;
-                        }
-                    }
-                    prefab = prefab with { Probability = weightedProbability };
                     allowedPrefabs.Add(prefab);
                 }
             }
@@ -226,21 +200,17 @@ public class BatchEntitySpawner : IEntitySpawner
         return allowedPrefabs;
     }
 
-    /// <summary>
-    /// Spawns the regular (can be children of PrefabPlaceholdersGroup) which are always the same thus context independent.
-    /// </summary>
-    /// <inheritdoc cref="CreateEntityWithChildren" />
     private IEnumerable<Entity> SpawnEntitiesStaticly(EntitySpawnPoint entitySpawnPoint, DeterministicGenerator deterministicBatchGenerator, WorldEntity parentEntity = null)
     {
-        if (worldEntityFactory.TryFind(entitySpawnPoint.ClassId, out UweWorldEntity uweWorldEntity))
+        Optional<UweWorldEntity> uweWorldEntity = worldEntityFactory.From(entitySpawnPoint.ClassId);
+
+        if (uweWorldEntity.HasValue)
         {
-            // prefabZUp should not be taken into account for statically spawned entities
             IEnumerable<Entity> entities = CreateEntityWithChildren(entitySpawnPoint,
-                                                                    entitySpawnPoint.ClassId,
-                                                                    uweWorldEntity.TechType,
-                                                                    false,
-                                                                    uweWorldEntity.CellLevel,
                                                                     entitySpawnPoint.Scale,
+                                                                    uweWorldEntity.Value.TechType,
+                                                                    uweWorldEntity.Value.CellLevel,
+                                                                    entitySpawnPoint.ClassId,
                                                                     deterministicBatchGenerator,
                                                                     parentEntity);
             foreach (Entity entity in entities)
@@ -250,27 +220,15 @@ public class BatchEntitySpawner : IEntitySpawner
         }
     }
 
-    /// <returns>The first entity is a <see cref="WorldEntity"/> and the following are its children</returns>
-    private IEnumerable<Entity> CreateEntityWithChildren(EntitySpawnPoint entitySpawnPoint, string classId, NitroxTechType techType, bool prefabZUp, int cellLevel, NitroxVector3 localScale, DeterministicGenerator deterministicBatchGenerator, Entity parentEntity = null, bool randomPosition = false)
+    private IEnumerable<Entity> CreateEntityWithChildren(EntitySpawnPoint entitySpawnPoint, NitroxVector3 scale, NitroxTechType techType, int cellLevel, string classId, DeterministicGenerator deterministicBatchGenerator, Entity parentEntity = null)
     {
         WorldEntity spawnedEntity;
-        NitroxVector3 position = entitySpawnPoint.LocalPosition;
-        NitroxQuaternion rotation = entitySpawnPoint.LocalRotation;
-        if (prefabZUp)
-        {
-            // See EntitySlot.SpawnVirtualEntities use of WorldEntityInfo.prefabZUp
-            rotation *= prefabZUpRotation;
-        }
-        if (randomPosition)
-        {
-            position += XORRandom.NextInsideSphere(4f);
-        }
 
         if (classId == CellRootEntity.CLASS_ID)
         {
-            spawnedEntity = new CellRootEntity(position,
-                                               rotation,
-                                               localScale,
+            spawnedEntity = new CellRootEntity(entitySpawnPoint.LocalPosition,
+                                               entitySpawnPoint.LocalRotation,
+                                               scale,
                                                techType,
                                                cellLevel,
                                                classId,
@@ -279,9 +237,9 @@ public class BatchEntitySpawner : IEntitySpawner
         }
         else
         {
-            spawnedEntity = new WorldEntity(position,
-                                            rotation,
-                                            localScale,
+            spawnedEntity = new WorldEntity(entitySpawnPoint.LocalPosition,
+                                            entitySpawnPoint.LocalRotation,
+                                            scale,
                                             techType,
                                             cellLevel,
                                             classId,
@@ -290,13 +248,15 @@ public class BatchEntitySpawner : IEntitySpawner
                                             parentEntity);
         }
 
-        // See EntitySlotsPlaceholder.Spawn
         if (!TryCreatePrefabPlaceholdersGroupWithChildren(ref spawnedEntity, classId, deterministicBatchGenerator))
         {
             spawnedEntity.ChildEntities = SpawnEntities(entitySpawnPoint.Children, deterministicBatchGenerator, spawnedEntity);
         }
 
-        entityBootstrapperManager.PrepareEntityIfRequired(ref spawnedEntity, deterministicBatchGenerator);
+        if (customBootstrappersByTechType.TryGetValue(techType, out IEntityBootstrapper bootstrapper))
+        {
+            bootstrapper.Prepare(spawnedEntity, deterministicBatchGenerator);
+        }
 
         yield return spawnedEntity;
 
@@ -329,25 +289,18 @@ public class BatchEntitySpawner : IEntitySpawner
 
     private List<Entity> SpawnEntities(List<EntitySpawnPoint> entitySpawnPoints, DeterministicGenerator deterministicBatchGenerator, WorldEntity parentEntity = null)
     {
-        List<Entity> entities = new();
+        List<Entity> entities = new List<Entity>();
         foreach (EntitySpawnPoint esp in entitySpawnPoints)
         {
-            if (esp is SerializedEntitySpawnPoint serializedEsp)
-            {
-                // We add the cell's coordinate because this entity isn't parented so it needs to know about its global position
-                NitroxTransform transform = new(serializedEsp.LocalPosition + serializedEsp.AbsoluteEntityCell.Position, serializedEsp.LocalRotation, serializedEsp.Scale);
-                SerializedWorldEntity entity = new(serializedEsp.SerializedComponents, serializedEsp.Layer, transform, deterministicBatchGenerator.NextId(), parentEntity?.Id, serializedEsp.AbsoluteEntityCell);
-                entities.Add(entity);
-                continue;
-            }
-
             if (esp.Density > 0)
             {
-                if (prefabFactory.TryGetPossiblePrefabs(esp.BiomeType, out List<UwePrefab> prefabs) && prefabs.Count > 0)
+                List<UwePrefab> prefabs = prefabFactory.GetPossiblePrefabs(esp.BiomeType);
+
+                if (prefabs.Count > 0)
                 {
                     entities.AddRange(SpawnEntitiesUsingRandomDistribution(esp, prefabs, deterministicBatchGenerator, parentEntity));
                 }
-                else if (!string.IsNullOrEmpty(esp.ClassId))
+                else if (esp.ClassId != null)
                 {
                     entities.AddRange(SpawnEntitiesStaticly(esp, deterministicBatchGenerator, parentEntity));
                 }
@@ -365,80 +318,51 @@ public class BatchEntitySpawner : IEntitySpawner
     /// <returns>If this Entity is a PrefabPlaceholdersGroup</returns>
     private bool TryCreatePrefabPlaceholdersGroupWithChildren(ref WorldEntity entity, string classId, DeterministicGenerator deterministicBatchGenerator)
     {
-        if (!placeholdersGroupsByClassId.TryGetValue(classId, out PrefabPlaceholdersGroupAsset groupAsset))
+        if (!prefabPlaceholderGroupsByClassId.TryGetValue(classId, out PrefabPlaceholdersGroupAsset group))
         {
             return false;
         }
 
-        entity = new PlaceholderGroupWorldEntity(entity);
+        List<Entity> placeholders = new(group.PrefabPlaceholders.Length);
+        entity = new PlaceholderGroupWorldEntity(entity, placeholders);
 
-        // Adapted from PrefabPlaceholdersGroup.Spawn
-        for (int i = 0; i < groupAsset.PrefabAssets.Length; i++)
+        for (int i = 0; i < group.PrefabPlaceholders.Length; i++)
         {
-            // Fix positioning of children
-            IPrefabAsset prefabAsset = groupAsset.PrefabAssets[i];
+            PrefabPlaceholderAsset placeholder = group.PrefabPlaceholders[i];
 
-            // Two cases, either the PrefabPlaceholder holds a visible GameObject or an EntitySlot (a MB which has a chance of spawning a prefab)
-            if (prefabAsset is PrefabPlaceholderAsset placeholderAsset && placeholderAsset.EntitySlot != null)
+            PrefabChildEntity prefabChild = new(deterministicBatchGenerator.NextId(), null, NitroxTechType.None, i, null, entity.Id);
+            placeholders.Add(prefabChild);
+
+            if (placeholder.EntitySlot == null)
             {
-                WorldEntity spawnedEntity = SpawnPrefabAssetInEntitySlot(placeholderAsset.Transform, placeholderAsset.EntitySlot, deterministicBatchGenerator, entity.AbsoluteEntityCell, entity);
-
-                if (spawnedEntity != null)
-                {
-                    // Spawned child will not be of the same type as the current prefabAsset
-                    if (placeholdersGroupsByClassId.ContainsKey(spawnedEntity.ClassId))
-                    {
-                        spawnedEntity = new PlaceholderGroupWorldEntity(spawnedEntity, i);
-                    }
-                    else
-                    {
-                        spawnedEntity = new PrefabPlaceholderEntity(spawnedEntity, i);
-                    }
-                    entity.ChildEntities.Add(spawnedEntity);
-                }
+                prefabChild.ChildEntities.Add(new PrefabPlaceholderEntity(deterministicBatchGenerator.NextId(), group.TechType, prefabChild.Id));
             }
             else
             {
-                // Regular visible GameObject
-                string prefabClassId = prefabAsset.ClassId;
-                if (prefabAsset is PrefabPlaceholderRandomAsset randomAsset && randomAsset.ClassIds.Count > 0)
-                {
-                    int randomIndex = XORRandom.NextIntRange(0, randomAsset.ClassIds.Count);
-                    prefabClassId = randomAsset.ClassIds[randomIndex];
-                }
+                Entity entitySlotNullableEntity = SpawnEntitySlotEntities(placeholder.EntitySlot, deterministicBatchGenerator, entity.AbsoluteEntityCell, prefabChild);
 
-                EntitySpawnPoint esp = new(entity.AbsoluteEntityCell, prefabAsset.Transform.LocalPosition, prefabAsset.Transform.LocalRotation, prefabAsset.Transform.LocalScale, prefabClassId);
-                WorldEntity spawnedEntity = (WorldEntity)SpawnEntitiesStaticly(esp, deterministicBatchGenerator, entity).First();
-                if (prefabAsset is PrefabPlaceholdersGroupAsset)
+                if (entitySlotNullableEntity != null)
                 {
-                    spawnedEntity = new PlaceholderGroupWorldEntity(spawnedEntity, i);
+                    prefabChild.ChildEntities.Add(entitySlotNullableEntity);
                 }
-                else
-                {
-                    spawnedEntity = new PrefabPlaceholderEntity(spawnedEntity, i);
-                }
-
-                entity.ChildEntities.Add(spawnedEntity);
             }
         }
 
         return true;
     }
 
-    private WorldEntity SpawnPrefabAssetInEntitySlot(NitroxTransform transform, NitroxEntitySlot entitySlot, DeterministicGenerator deterministicBatchGenerator, AbsoluteEntityCell cell, Entity parentEntity)
+    private Entity SpawnEntitySlotEntities(NitroxEntitySlot entitySlot, DeterministicGenerator deterministicBatchGenerator, AbsoluteEntityCell cell, PrefabChildEntity parentEntity)
     {
-        if (!prefabFactory.TryGetPossiblePrefabs(entitySlot.BiomeType, out List<UwePrefab> prefabs) || prefabs.Count == 0)
-        {
-            return null;
-        }
+        List<UwePrefab> prefabs = prefabFactory.GetPossiblePrefabs(entitySlot.BiomeType);
         List<Entity> entities = new();
 
-        EntitySpawnPoint entitySpawnPoint = new(cell, transform.LocalPosition, transform.LocalRotation, entitySlot.AllowedTypes.ToList(), 1f, entitySlot.BiomeType);
-        entities.AddRange(SpawnEntitiesUsingRandomDistribution(entitySpawnPoint, prefabs, deterministicBatchGenerator, parentEntity));
-        if (entities.Count > 0)
+        if (prefabs.Count > 0)
         {
-            return (WorldEntity)entities[0];
+            EntitySpawnPoint entitySpawnPoint = new EntitySpawnPoint(cell, NitroxVector3.Zero, NitroxQuaternion.Identity, entitySlot.AllowedTypes.ToList(), 1f, entitySlot.BiomeType);
+            entities.AddRange(SpawnEntitiesUsingRandomDistribution(entitySpawnPoint, prefabs, deterministicBatchGenerator, parentEntity));
         }
-        return null;
+
+        return entities.FirstOrDefault();
     }
+
 }

@@ -1,32 +1,34 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NitroxModel.DataStructures.GameLogic.Entities;
+using NitroxModel.DataStructures.Util;
 using UWE;
 
-namespace NitroxModel_Subnautica.DataStructures.GameLogic.Entities;
-
-public class SubnauticaUweWorldEntityFactory : IUweWorldEntityFactory
+namespace NitroxModel_Subnautica.DataStructures.GameLogic.Entities
 {
-    private readonly Dictionary<string, WorldEntityInfo> worldEntitiesByClassId;
-
-    public SubnauticaUweWorldEntityFactory(Dictionary<string, WorldEntityInfo> worldEntitiesByClassId)
+    public class SubnauticaUweWorldEntityFactory : UweWorldEntityFactory
     {
-        this.worldEntitiesByClassId = worldEntitiesByClassId;
-    }
+        private Dictionary<string, WorldEntityInfo> worldEntitiesByClassId;
 
-    public bool TryFind(string classId, out UweWorldEntity uweWorldEntity)
-    {
-        if (worldEntitiesByClassId.TryGetValue(classId, out WorldEntityInfo worldEntityInfo))
+        public SubnauticaUweWorldEntityFactory(Dictionary<string, WorldEntityInfo> worldEntitiesByClassId)
         {
-            uweWorldEntity = new(worldEntityInfo.classId,
-                                 worldEntityInfo.techType.ToDto(),
-                                 worldEntityInfo.slotType.ToString(),
-                                 worldEntityInfo.prefabZUp,
-                                 (int)worldEntityInfo.cellLevel,
-                                 worldEntityInfo.localScale.ToDto());
-
-            return true;
+            this.worldEntitiesByClassId = worldEntitiesByClassId;
         }
-        uweWorldEntity = null;
-        return false;
+
+        public override Optional<UweWorldEntity> From(string classId)
+        {
+
+            if (worldEntitiesByClassId.TryGetValue(classId, out WorldEntityInfo worldEntityInfo))
+            {
+                UweWorldEntity uweWorldEntity = new UweWorldEntity(worldEntityInfo.techType.ToDto(),
+                                                                   worldEntityInfo.localScale.ToDto(),
+                                                                   worldEntityInfo.classId,
+                                                                   worldEntityInfo.slotType.ToString(),
+                                                                   (int)worldEntityInfo.cellLevel);
+
+                return Optional.Of(uweWorldEntity);
+            }
+
+            return Optional.Empty;
+        }
     }
 }

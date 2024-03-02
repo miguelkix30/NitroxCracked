@@ -1,39 +1,55 @@
-﻿using NitroxClient.Communication.Packets.Processors.Abstract;
+﻿using System;
+using NitroxClient.Communication.Abstract;
+using NitroxClient.Communication.Packets.Processors.Abstract;
 using NitroxClient.GameLogic;
 using NitroxClient.MonoBehaviours;
 using NitroxModel_Subnautica.DataStructures;
+using NitroxModel.DataStructures.Util;
 using NitroxModel_Subnautica.Packets;
 using UnityEngine;
 
-namespace NitroxClient.Communication.Packets.Processors;
-
-public class ExosuitArmActionProcessor : ClientPacketProcessor<ExosuitArmActionPacket>
+namespace NitroxClient.Communication.Packets.Processors
 {
-    public override void Process(ExosuitArmActionPacket packet)
+    public class ExosuitArmActionProcessor : ClientPacketProcessor<ExosuitArmActionPacket>
     {
-        if (!NitroxEntity.TryGetObjectFrom(packet.ArmId, out GameObject gameObject))
+        private readonly IPacketSender packetSender;
+        private readonly ExosuitModuleEvent exosuitModuleEvent;
+
+        public ExosuitArmActionProcessor(IPacketSender packetSender, ExosuitModuleEvent exosuitModuleEvent)
         {
-            Log.Error("Could not find exosuit arm");
-            return;
+            this.packetSender = packetSender;
+            this.exosuitModuleEvent = exosuitModuleEvent;
         }
 
-        switch (packet.TechType)
+        public override void Process(ExosuitArmActionPacket packet)
         {
-            case TechType.ExosuitClawArmModule:
-                ExosuitModuleEvent.UseClaw(gameObject.GetComponent<ExosuitClawArm>(), packet.ArmAction);
-                break;
-            case TechType.ExosuitDrillArmModule:
-                ExosuitModuleEvent.UseDrill(gameObject.GetComponent<ExosuitDrillArm>(), packet.ArmAction);
-                break;
-            case TechType.ExosuitGrapplingArmModule:
-                ExosuitModuleEvent.UseGrappling(gameObject.GetComponent<ExosuitGrapplingArm>(), packet.ArmAction, packet.OpVector?.ToUnity());
-                break;
-            case TechType.ExosuitTorpedoArmModule:
-                ExosuitModuleEvent.UseTorpedo(gameObject.GetComponent<ExosuitTorpedoArm>(), packet.ArmAction, packet.OpVector?.ToUnity(), packet.OpRotation?.ToUnity());
-                break;
-            default:
-                Log.Error($"Got an arm tech that is not handled: {packet.TechType} with action: {packet.ArmAction} for id {packet.ArmId}");
-                break;
+            Optional<GameObject> opGameObject = NitroxEntity.GetObjectFrom(packet.ArmId);
+            if (!opGameObject.HasValue)
+            {
+                Log.Error("Could not find exosuit arm");
+                return;
+            }
+            GameObject gameObject = opGameObject.Value;
+            switch (packet.TechType)
+            {
+
+                case TechType.ExosuitClawArmModule:
+                    exosuitModuleEvent.UseClaw(gameObject.GetComponent<ExosuitClawArm>(), packet.ArmAction);
+                    break;
+                case TechType.ExosuitDrillArmModule:
+                    exosuitModuleEvent.UseDrill(gameObject.GetComponent<ExosuitDrillArm>(), packet.ArmAction);
+                    break;
+                case TechType.ExosuitGrapplingArmModule:
+                    exosuitModuleEvent.UseGrappling(gameObject.GetComponent<ExosuitGrapplingArm>(), packet.ArmAction, packet.OpVector?.ToUnity());
+                    break;
+                case TechType.ExosuitTorpedoArmModule:
+                    exosuitModuleEvent.UseTorpedo(gameObject.GetComponent<ExosuitTorpedoArm>(), packet.ArmAction, packet.OpVector?.ToUnity(), packet.OpRotation?.ToUnity());
+                    break;
+                default:
+                    Log.Error($"Got an arm tech that is not handled: {packet.TechType} with action: {packet.ArmAction} for id {packet.ArmId}");
+                    break;
+            }
+
         }
     }
 }

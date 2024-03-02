@@ -25,7 +25,7 @@ public class InventoryItemEntitySpawner : SyncEntitySpawner<InventoryItemEntity>
         }
 
         TaskResult<GameObject> gameObjectResult = new();
-        yield return DefaultWorldEntitySpawner.CreateGameObject(entity.TechType.ToUnity(), entity.ClassId, entity.Id, gameObjectResult);
+        yield return DefaultWorldEntitySpawner.CreateGameObject(entity.TechType.ToUnity(), entity.ClassId, gameObjectResult);
         GameObject gameObject = gameObjectResult.Get();
 
         SetupObject(entity, gameObject, parentObject, container);
@@ -45,7 +45,7 @@ public class InventoryItemEntitySpawner : SyncEntitySpawner<InventoryItemEntity>
             return true;
         }
 
-        GameObject gameObject = GameObjectHelper.SpawnFromPrefab(prefab, entity.Id);
+        GameObject gameObject = Utils.SpawnFromPrefab(prefab, null);
 
         SetupObject(entity, gameObject, parentObject, container);
 
@@ -84,12 +84,10 @@ public class InventoryItemEntitySpawner : SyncEntitySpawner<InventoryItemEntity>
 
     private void SetupObject(InventoryItemEntity entity, GameObject gameObject, GameObject parentObject, ItemsContainer container)
     {
+        NitroxEntity.SetNewId(gameObject, entity.Id);
+
         Pickupable pickupable = gameObject.RequireComponent<Pickupable>();
         pickupable.Initialize();
-
-        // Items eventually get "secured" once a player gets into a SubRoot (or for other reasons) so we need to force this state by default
-        // so that player don't risk their whole inventory if they reconnect in the water.
-        pickupable.destroyOnDeath = false;
 
         using (PacketSuppressor<EntityReparented>.Suppress())
         using (PacketSuppressor<PlayerQuickSlotsBindingChanged>.Suppress())

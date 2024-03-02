@@ -1,21 +1,25 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
-namespace NitroxModel.Discovery.Models;
-
-public enum Platform
+namespace NitroxModel.Discovery
 {
-    [Description("Standalone")]
-    NONE,
+    public enum Platform
+    {
+        [Description("Standalone")]
+        NONE,
 
-    [Description("Epic Games Store")]
-    EPIC,
+        [Description("Pirated")]
+        PIRATED,
 
-    [Description("Steam")]
-    STEAM,
+        [Description("Epic Games Store")]
+        EPIC,
 
-    [Description("Microsoft")]
-    MICROSOFT,
+        [Description("Steam")]
+        STEAM,
 
-    [Description("Discord")]
-    DISCORD
+        [Description("Microsoft")]
+        MICROSOFT,
+
+        [Description("Discord")]
+        DISCORD
+    }
 }

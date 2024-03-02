@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AssetsTools.NET;
 using AssetsTools.NET.Extra;
 using NitroxServer_Subnautica.Resources.Parsers.Abstract;
@@ -24,8 +24,7 @@ public class WorldEntityInfoParser : ResourceFileParser<Dictionary<string, World
                 techType = (TechType)info["techType"].AsInt,
                 slotType = (EntitySlot.Type)info["slotType"].AsInt,
                 prefabZUp = info["prefabZUp"].AsBool,
-                cellLevel = (LargeWorldEntity.CellLevel)info["cellLevel"].AsInt,
-                localScale = info["localScale"].ToVector3()
+                localScale = info["localScale"].AsVector3()
             };
 
             worldEntitiesByClassId.Add(entityData.classId, entityData);

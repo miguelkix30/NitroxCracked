@@ -21,7 +21,7 @@ public static class ResourceAssetsParser
             {
                 WorldEntitiesByClassId = new WorldEntityInfoParser().ParseFile(),
                 LootDistributionsJson = new EntityDistributionsParser().ParseFile(),
-                PrefabPlaceholdersGroupsByGroupClassId = prefabPlaceholderGroupsParser.ParseFile(),
+                PrefabPlaceholderGroupsByGroupClassId = prefabPlaceholderGroupsParser.ParseFile(),
                 NitroxRandom = new RandomStartParser().ParseFile()
             };
         }

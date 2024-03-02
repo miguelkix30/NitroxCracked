@@ -46,16 +46,13 @@ namespace NitroxLauncher
         {
             Application.Current.MainWindow?.Hide();
 
-            if (nitroxEntryPatch?.IsApplied == true)
+            try
             {
-                try
-                {
-                    nitroxEntryPatch.Remove();
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex, "Error while disposing the launcher");
-                }
+                nitroxEntryPatch.Remove();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error while disposing the launcher");
             }
 
             gameProcess?.Dispose();
@@ -262,7 +259,7 @@ namespace NitroxLauncher
                 _ => throw new Exception($"Directory '{subnauticaPath}' is not a valid {GameInfo.Subnautica.Name} game installation or the game's platform is unsupported by Nitrox.")
             };
 
-            return game ?? throw new Exception($"Game failed to start through {platform.Name}");
+            return game ?? throw new Exception($"Unable to start game through {platform.Name}");
         }
 
         private void OnSubnauticaExited(object sender, EventArgs e)

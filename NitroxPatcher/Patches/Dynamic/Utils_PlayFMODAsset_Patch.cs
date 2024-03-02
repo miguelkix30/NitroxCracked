@@ -1,8 +1,7 @@
-using System.Reflection;
+﻿using System.Reflection;
 using NitroxClient.GameLogic.FMOD;
-using NitroxModel_Subnautica.DataStructures;
-using NitroxModel.GameLogic.FMOD;
 using NitroxModel.Helper;
+using NitroxModel_Subnautica.DataStructures;
 
 namespace NitroxPatcher.Patches.Dynamic;
 
@@ -12,14 +11,14 @@ public sealed partial class Utils_PlayFMODAsset_Patch : NitroxPatch, IDynamicPat
 
     public static bool Prefix()
     {
-        return !FMODSoundSuppressor.SuppressFMODEvents;
+        return !FMODSuppressor.SuppressFMODEvents;
     }
 
     public static void Postfix(FMODAsset asset)
     {
-        if (Resolve<FMODWhitelist>().IsWhitelisted(asset.path))
+        if (Resolve<FMODSystem>().IsWhitelisted(asset.path, out bool isGlobal, out float radius))
         {
-            Resolve<FMODSystem>().SendAssetPlay(asset.path, Player.main.transform.position.ToDto(), 1f);
+            Resolve<FMODSystem>().PlayAsset(asset.path, Player.main.transform.position.ToDto(), 1f, radius, isGlobal);
         }
     }
 }

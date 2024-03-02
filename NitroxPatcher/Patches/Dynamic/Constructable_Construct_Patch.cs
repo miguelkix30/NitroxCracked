@@ -6,7 +6,6 @@ using HarmonyLib;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.GameLogic.Bases;
 using NitroxClient.GameLogic.Spawning.Bases;
-using NitroxClient.GameLogic.Spawning.Metadata;
 using NitroxClient.Helpers;
 using NitroxClient.MonoBehaviours;
 using NitroxModel.DataStructures;
@@ -135,7 +134,7 @@ public sealed partial class Constructable_Construct_Patch : NitroxPatch, IDynami
             {
                 if (moduleObject.TryGetComponent(out IBaseModule builtModule))
                 {
-                    builtPiece = InteriorPieceEntitySpawner.From(builtModule, Resolve<EntityMetadataManager>());
+                    builtPiece = InteriorPieceEntitySpawner.From(builtModule);
                 }
                 else if (moduleObject.GetComponent<VehicleDockingBay>())
                 {
@@ -161,7 +160,7 @@ public sealed partial class Constructable_Construct_Patch : NitroxPatch, IDynami
             NitroxEntity.SetNewId(baseGhost.targetBase.gameObject, entityId);
             BuildingHandler.Main.EnsureTracker(entityId).ResetToId();
 
-            Resolve<IPacketSender>().Send(new PlaceBase(entityId, BuildEntitySpawner.From(targetBase, Resolve<EntityMetadataManager>())));
+            Resolve<IPacketSender>().Send(new PlaceBase(entityId, BuildEntitySpawner.From(targetBase)));
         }
 
         if (moduleObject)
@@ -172,7 +171,7 @@ public sealed partial class Constructable_Construct_Patch : NitroxPatch, IDynami
 
     private static void SendUpdateBase(Base @base, NitroxId baseId, NitroxId pieceId, GlobalRootEntity builtPieceEntity, MoonpoolManager moonpoolManager)
     {
-        List<Entity> childEntities = BuildUtils.GetChildEntities(@base, baseId, Resolve<EntityMetadataManager>());
+        List<Entity> childEntities = BuildUtils.GetChildEntities(@base, baseId);
 
         // We get InteriorPieceEntity children from the base and make up a dictionary with their updated data (their BaseFace)
         Dictionary<NitroxId, NitroxBaseFace> updatedChildren = childEntities.OfType<InteriorPieceEntity>()

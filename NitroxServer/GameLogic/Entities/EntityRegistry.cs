@@ -68,9 +68,6 @@ namespace NitroxServer.GameLogic.Entities
             }
         }
 
-        /// <summary>
-        /// Registers or updates an entity and its children.
-        /// </summary>
         public void AddOrUpdate(Entity entity)
         {
             if (!entitiesById.TryAdd(entity.Id, entity))
@@ -99,21 +96,11 @@ namespace NitroxServer.GameLogic.Entities
         /// example a dropped InventoryEntity turns into a WorldEntity but keeps its 
         /// battery inside (already known). 
         /// </summary>
-        /// <remarks>
-        /// Updates entities if they already exist
-        /// </remarks>
         public void AddEntitiesIgnoringDuplicate(IEnumerable<Entity> entities)
         {
             foreach (Entity entity in entities)
             {
-                if (entitiesById.TryGetValue(entity.Id, out Entity currentEntity))
-                {
-                    entitiesById.TryUpdate(entity.Id, entity, currentEntity);
-                }
-                else
-                {
-                    entitiesById.TryAdd(entity.Id, entity);
-                }
+                entitiesById.TryAdd(entity.Id, entity);
                 AddEntitiesIgnoringDuplicate(entity.ChildEntities);
             }
         }
@@ -150,6 +137,8 @@ namespace NitroxServer.GameLogic.Entities
         {
             if (entity.ParentId != null && TryGetEntityById(entity.ParentId, out Entity parentEntity))
             {
+                // TODO: Either use this solution (to remove duplicated entities also) to avoid wrongly-referenced children
+                // Or try fixing wrongly-referenced children (when entities are overwritten by AddOrUpdate)
                 parentEntity.ChildEntities.RemoveAll(childEntity => childEntity.Id.Equals(entity.Id));
                 entity.ParentId = null;
             }
@@ -209,6 +198,7 @@ namespace NitroxServer.GameLogic.Entities
 
         public void TransferChildren(Entity parent, Entity newParent, Func<Entity, bool> filter = null)
         {
+            Log.Debug($"Moving {parent.ChildEntities.Count} children from {parent.Id} to {newParent.Id}");
             IEnumerable<Entity> childrenToMove = filter != null ?
                 parent.ChildEntities.Where(filter) : parent.ChildEntities;
 

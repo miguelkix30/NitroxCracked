@@ -1,8 +1,7 @@
-using System.Reflection;
+﻿using System.Reflection;
+using NitroxClient.GameLogic.FMOD;
 using NitroxClient.MonoBehaviours;
 using NitroxClient.Unity.Helper;
-using NitroxModel_Subnautica.Helper;
-using NitroxModel.GameLogic.FMOD;
 using NitroxModel.Helper;
 
 namespace NitroxPatcher.Patches.Dynamic;
@@ -13,22 +12,19 @@ public sealed partial class FMOD_StudioEventEmitter_Start_Patch : NitroxPatch, I
 
     public static void Postfix(FMOD_StudioEventEmitter __instance)
     {
-        if (!Resolve<FMODWhitelist>().IsWhitelisted(__instance.asset.path, out float radius))
+        if (Resolve<FMODSystem>().IsWhitelisted(__instance.asset.path, out bool _, out float radius))
         {
-            return;
-        }
-
-        if (!__instance.TryGetComponentInParent(out NitroxEntity entity, true))
-        {
-            if (__instance.GetRootParent().gameObject.name != SubnauticaConstants.LIGHTMAPPED_PREFAB_NAME) // ignore calls from "blueprint prefabs"
+            if (!__instance.TryGetComponentInParent(out NitroxEntity entity))
             {
-                Log.Warn($"[{nameof(FMOD_StudioEventEmitter_Start_Patch)}] - No NitroxEntity found for {__instance.asset.path} at {__instance.gameObject.GetFullHierarchyPath()}");
+                Log.Warn($"[FMOD_CustomEmitter_Start_Patch] - No NitroxEntity for \"{__instance.asset.path}\" found!");
+                return;
             }
 
-            return;
+            if (!entity.gameObject.TryGetComponent(out FMODEmitterController fmodController))
+            {
+                fmodController = entity.gameObject.AddComponent<FMODEmitterController>();
+            }
+            fmodController.AddEmitter(__instance.asset.path, __instance, radius);
         }
-
-        FMODEmitterController fmodController = entity.gameObject.EnsureComponent<FMODEmitterController>();
-        fmodController.AddEmitter(__instance.asset.path, __instance, radius);
     }
 }

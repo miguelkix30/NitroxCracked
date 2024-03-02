@@ -6,7 +6,7 @@ using LiteNetLib.Utils;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.Debuggers;
 using NitroxClient.MonoBehaviours;
-using NitroxClient.MonoBehaviours.Gui.Modals;
+using NitroxClient.MonoBehaviours.Gui.InGame;
 using NitroxModel.Networking;
 using NitroxModel.Packets;
 
@@ -14,19 +14,28 @@ namespace NitroxClient.Communication.NetworkingLayer.LiteNetLib;
 
 public class LiteNetLibClient : IClient
 {
-    private readonly NetManager client;
+    public bool IsConnected { get; private set; }
 
     private readonly AutoResetEvent connectedEvent = new(false);
     private readonly NetDataWriter dataWriter = new();
-    private readonly INetworkDebugger networkDebugger;
     private readonly PacketReceiver packetReceiver;
-    public bool IsConnected { get; private set; }
+    private readonly INetworkDebugger networkDebugger;
+
+    private NetManager client;
 
     public LiteNetLibClient(PacketReceiver packetReceiver, INetworkDebugger networkDebugger = null)
     {
         this.packetReceiver = packetReceiver;
         this.networkDebugger = networkDebugger;
-        EventBasedNetListener listener = new();
+    }
+
+    public async Task StartAsync(string ipAddress, int serverPort)
+    {
+        Log.Info("Initializing LiteNetLibClient...");
+
+        SynchronizationContext.SetSynchronizationContext(new SynchronizationContext());
+
+        EventBasedNetListener listener = new EventBasedNetListener();
         listener.PeerConnectedEvent += Connected;
         listener.PeerDisconnectedEvent += Disconnected;
         listener.NetworkReceiveEvent += ReceivedNetworkData;
@@ -38,19 +47,12 @@ public class LiteNetLibClient : IClient
             DisconnectTimeout = 300000 //Disables Timeout (for 5 min) for debug purpose (like if you jump though the server code)
 #endif
         };
-    }
 
-    public async Task StartAsync(string ipAddress, int serverPort)
-    {
-        Log.Info("Initializing LiteNetLibClient...");
-
-        // ConfigureAwait(false) is needed because Unity uses a custom "UnitySynchronizationContext". Which makes async/await work like Unity coroutines.
-        // Because this Task.Run is async-over-sync this would otherwise blocks the main thread as it wants to, without ConfigureAwait(false), continue on the same thread (i.e. main thread).
         await Task.Run(() =>
         {
             client.Start();
             client.Connect(ipAddress, serverPort, "nitrox");
-        }).ConfigureAwait(false);
+        });
 
         connectedEvent.WaitOne(2000);
         connectedEvent.Reset();
@@ -74,7 +76,7 @@ public class LiteNetLibClient : IClient
     }
 
     /// <summary>
-    ///     This should be called <b>once</b> each game tick
+    /// This should be called <b>once</b> each game tick
     /// </summary>
     public void PollEvents() => client.PollEvents();
 

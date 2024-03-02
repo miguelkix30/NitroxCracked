@@ -1,80 +1,82 @@
 ﻿using FMOD.Studio;
-using NitroxModel.GameLogic.FMOD;
+using NitroxClient.GameLogic.FMOD;
+using NitroxModel.Core;
 using UnityEngine;
 
-namespace NitroxClient.MonoBehaviours;
-
-public class MultiplayerSeaMoth : MultiplayerVehicleControl
+namespace NitroxClient.MonoBehaviours
 {
-    private bool lastThrottle;
-    private SeaMoth seamoth;
-
-    private FMOD_CustomLoopingEmitter rpmSound;
-    private FMOD_CustomEmitter revSound;
-    private float radiusRpmSound;
-    private float radiusRevSound;
-
-    protected override void Awake()
+    public class MultiplayerSeaMoth : MultiplayerVehicleControl
     {
-        seamoth = GetComponent<SeaMoth>();
-        WheelYawSetter = value => seamoth.steeringWheelYaw = value;
-        WheelPitchSetter = value => seamoth.steeringWheelPitch = value;
+        private bool lastThrottle;
+        private SeaMoth seamoth;
 
-        SetupSound();
-        base.Awake();
-    }
+        private FMOD_CustomLoopingEmitter rpmSound;
+        private FMOD_CustomEmitter revSound;
+        private float radiusRpmSound;
+        private float radiusRevSound;
 
-    protected void Update()
-    {
-        float distanceToPlayer = Vector3.Distance(Player.main.transform.position, transform.position);
-        float volumeRpmSound = SoundHelper.CalculateVolume(distanceToPlayer, radiusRpmSound, 1f);
-        float volumeRevSound = SoundHelper.CalculateVolume(distanceToPlayer, radiusRevSound, 1f);
-        rpmSound.GetEventInstance().setVolume(volumeRpmSound);
-        revSound.GetEventInstance().setVolume(volumeRevSound);
-
-        if (lastThrottle)
+        protected override void Awake()
         {
-            seamoth.engineSound.AccelerateInput();
+            seamoth = GetComponent<SeaMoth>();
+            WheelYawSetter = value => seamoth.steeringWheelYaw = value;
+            WheelPitchSetter = value => seamoth.steeringWheelPitch = value;
+            
+            SetUpSound();
+            base.Awake();
         }
-    }
 
-    public override void Exit()
-    {
-        seamoth.bubbles.Stop();
-        base.Exit();
-    }
-
-    internal override void SetThrottle(bool isOn)
-    {
-        if (isOn != lastThrottle)
+        protected void Update()
         {
-            if (isOn)
-            {
-                seamoth.bubbles.Play();
-            }
-            else
-            {
-                seamoth.bubbles.Stop();
-            }
+            // Clamp volume between 0 and 1 (nothing or max). Going below 0 turns up volume to max.
+            float distance = Vector3.Distance(Player.main.transform.position, transform.position);
+            rpmSound.GetEventInstance().setVolume(Mathf.Clamp01(1 - distance / radiusRpmSound));
+            revSound.GetEventInstance().setVolume(Mathf.Clamp01(1 - distance / radiusRevSound));
 
-            lastThrottle = isOn;
+            if (lastThrottle)
+            {
+                seamoth.engineSound.AccelerateInput();
+            }
         }
-    }
 
-    private void SetupSound()
-    {
-        rpmSound = seamoth.engineSound.engineRpmSFX;
-        revSound = seamoth.engineSound.engineRevUp;
+        public override void Exit()
+        {
+            seamoth.bubbles.Stop();
+            base.Exit();
+        }
 
-        rpmSound.followParent = true;
-        revSound.followParent = true;
+        internal override void SetThrottle(bool isOn)
+        {
+            if (isOn != lastThrottle)
+            {
+                if (isOn)
+                {
+                    seamoth.bubbles.Play();
+                }
+                else
+                {
+                    seamoth.bubbles.Stop();
+                }
 
-        this.Resolve<FMODWhitelist>().IsWhitelisted(rpmSound.asset.path, out radiusRpmSound);
-        this.Resolve<FMODWhitelist>().IsWhitelisted(revSound.asset.path, out radiusRevSound);
+                lastThrottle = isOn;
+            }
+        }
 
-        rpmSound.GetEventInstance().setProperty(EVENT_PROPERTY.MINIMUM_DISTANCE, 1f);
-        revSound.GetEventInstance().setProperty(EVENT_PROPERTY.MINIMUM_DISTANCE, 1f);
-        rpmSound.GetEventInstance().setProperty(EVENT_PROPERTY.MAXIMUM_DISTANCE, radiusRpmSound);
-        revSound.GetEventInstance().setProperty(EVENT_PROPERTY.MAXIMUM_DISTANCE, radiusRevSound);
+        private void SetUpSound()
+        {
+            FMODSystem fmodSystem = NitroxServiceLocator.LocateService<FMODSystem>();
+            rpmSound = seamoth.engineSound.engineRpmSFX;
+            revSound = seamoth.engineSound.engineRevUp;
+
+            rpmSound.followParent = true;
+            revSound.followParent = true;
+
+            fmodSystem.IsWhitelisted(rpmSound.asset.path, out bool _, out radiusRpmSound);
+            fmodSystem.IsWhitelisted(revSound.asset.path, out bool _, out radiusRevSound);
+
+            rpmSound.GetEventInstance().setProperty(EVENT_PROPERTY.MINIMUM_DISTANCE, 1f);
+            revSound.GetEventInstance().setProperty(EVENT_PROPERTY.MINIMUM_DISTANCE, 1f);
+            rpmSound.GetEventInstance().setProperty(EVENT_PROPERTY.MAXIMUM_DISTANCE, radiusRpmSound);
+            revSound.GetEventInstance().setProperty(EVENT_PROPERTY.MAXIMUM_DISTANCE, radiusRevSound);
+        }
     }
 }

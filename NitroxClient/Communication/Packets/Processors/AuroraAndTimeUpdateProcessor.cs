@@ -17,7 +17,6 @@ public class AuroraAndTimeUpdateProcessor : ClientPacketProcessor<AuroraAndTimeU
     {
         timeManager.ProcessUpdate(packet.TimeData.TimePacket);
         StoryManager.UpdateAuroraData(packet.TimeData.AuroraEventData);
-        timeManager.AuroraRealExplosionTime = packet.TimeData.AuroraEventData.AuroraRealExplosionTime;
         if (packet.Restore)
         {
             StoryManager.RestoreAurora();

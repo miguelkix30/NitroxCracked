@@ -19,12 +19,10 @@ namespace NitroxClient.GameLogic.Spawning.Bases;
 public class InteriorPieceEntitySpawner : EntitySpawner<InteriorPieceEntity>
 {
     private readonly Entities entities;
-    private readonly EntityMetadataManager entityMetadataManager;
 
-    public InteriorPieceEntitySpawner(Entities entities, EntityMetadataManager entityMetadataManager)
+    public InteriorPieceEntitySpawner(Entities entities)
     {
         this.entities = entities;
-        this.entityMetadataManager = entityMetadataManager;
     }
 
     protected override IEnumerator SpawnAsync(InteriorPieceEntity entity, TaskResult<Optional<GameObject>> result)
@@ -88,7 +86,7 @@ public class InteriorPieceEntitySpawner : EntitySpawner<InteriorPieceEntity>
 
     protected override bool SpawnsOwnChildren(InteriorPieceEntity entity) => true;
 
-    public IEnumerator RestoreInteriorPiece(InteriorPieceEntity interiorPiece, Base @base, TaskResult<Optional<GameObject>> result = null)
+    public static IEnumerator RestoreInteriorPiece(InteriorPieceEntity interiorPiece, Base @base, TaskResult<Optional<GameObject>> result = null)
     {
         if (!DefaultWorldEntitySpawner.TryGetCachedPrefab(out GameObject prefab, classId: interiorPiece.ClassId))
         {
@@ -109,12 +107,12 @@ public class InteriorPieceEntitySpawner : EntitySpawner<InteriorPieceEntity>
         {
             NitroxEntity.SetNewId(moduleObject, interiorPiece.Id);
             yield return BuildingPostSpawner.ApplyPostSpawner(moduleObject, interiorPiece.Id);
-            entityMetadataManager.ApplyMetadata(moduleObject, interiorPiece.Metadata);
+            EntityMetadataProcessor.ApplyMetadata(moduleObject, interiorPiece.Metadata);
             result.Set(moduleObject);
         }
     }
 
-    public static InteriorPieceEntity From(IBaseModule module, EntityMetadataManager entityMetadataManager)
+    public static InteriorPieceEntity From(IBaseModule module)
     {
         InteriorPieceEntity interiorPiece = InteriorPieceEntity.MakeEmpty();
         GameObject gameObject = (module as Component).gameObject;
@@ -148,14 +146,14 @@ public class InteriorPieceEntitySpawner : EntitySpawner<InteriorPieceEntity>
                 break;
             // When you deconstruct (not entirely) then construct back those pieces, they keep their inventories
             case BaseNuclearReactor baseNuclearReactor:
-                interiorPiece.ChildEntities.AddRange(Items.GetEquipmentModuleEntities(baseNuclearReactor.equipment, entityId, entityMetadataManager));
+                interiorPiece.ChildEntities.AddRange(Items.GetEquipmentModuleEntities(baseNuclearReactor.equipment, entityId));
                 break;
             case BaseBioReactor baseBioReactor:
                 foreach (ItemsContainer.ItemGroup itemGroup in baseBioReactor.container._items.Values)
                 {
                     foreach (InventoryItem item in itemGroup.items)
                     {
-                        interiorPiece.ChildEntities.Add(Items.ConvertToInventoryItemEntity(item.item.gameObject, entityMetadataManager));
+                        interiorPiece.ChildEntities.Add(Items.ConvertToInventoryItemEntity(item.item.gameObject));
                     }
                 }
                 break;

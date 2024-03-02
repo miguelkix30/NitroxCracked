@@ -1,9 +1,8 @@
-using NitroxClient.GameLogic.Spawning.Metadata.Extractor.Abstract;
 using NitroxModel.DataStructures.GameLogic.Entities.Metadata;
 
 namespace NitroxClient.GameLogic.Spawning.Metadata.Extractor;
 
-public class PlantableMetadataExtractor : EntityMetadataExtractor<Plantable, PlantableMetadata>
+public class PlantableMetadataExtractor : GenericEntityMetadataExtractor<Plantable, PlantableMetadata>
 {
     public override PlantableMetadata Extract(Plantable entity)
     {

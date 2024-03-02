@@ -1,16 +1,18 @@
 using System;
 using System.Runtime.Serialization;
 using BinaryPack.Attributes;
-using NitroxModel.DataStructures.Unity;
 
 namespace NitroxModel.DataStructures.GameLogic.Entities.Metadata;
 
 [Serializable]
 [DataContract]
-public class SeamothMetadata : VehicleMetadata
+public class SeamothMetadata : EntityMetadata
 {
     [DataMember(Order = 1)]
     public bool LightsOn { get; }
+
+    [DataMember(Order = 2)]
+    public float Health { get; }
 
     [IgnoreConstructor]
     protected SeamothMetadata()
@@ -18,13 +20,14 @@ public class SeamothMetadata : VehicleMetadata
         // Constructor for serialization. Has to be "protected" for json serialization.
     }
 
-    public SeamothMetadata(bool lightsOn, float health, string name, NitroxVector3[] colors) : base(health, name, colors)
+    public SeamothMetadata(bool lightsOn, float health)
     {
         LightsOn = lightsOn;
+        Health = health;
     }
 
     public override string ToString()
     {
-        return $"[{nameof(SeamothMetadata)} LightsOn: {LightsOn} {base.ToString()}]";
+        return $"[SeamothMetadata LightsOn: {LightsOn}, Health: {Health}]";
     }
 }

@@ -13,15 +13,10 @@ public class TimeChange : Packet
     /// Real time at which the CurrentTime was observed
     /// </summary>
     public long UpdateTime { get; }
-    /// <summary>
-    /// Real time elapsed in seconds
-    /// </summary>
-    public double RealTimeElapsed;
 
-    public TimeChange(double currentTime, long updateTime, double realTimeElapsed)
+    public TimeChange(double currentTime, long updateTime)
     {
         CurrentTime = currentTime;
         UpdateTime = updateTime;
-        RealTimeElapsed = realTimeElapsed;
     }
 }

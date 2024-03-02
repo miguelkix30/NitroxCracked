@@ -1,12 +1,11 @@
 using System.Collections;
 using System.Collections.Generic;
-using NitroxModel.DataStructures;
+using NitroxClient.MonoBehaviours;
 using NitroxModel.DataStructures.GameLogic.Entities;
 using NitroxModel.DataStructures.Util;
 using NitroxModel_Subnautica.DataStructures;
 using UnityEngine;
 using UWE;
-using static NitroxClient.Unity.Helper.GameObjectHelper;
 
 namespace NitroxClient.GameLogic.Spawning.WorldEntities;
 
@@ -21,7 +20,7 @@ public class DefaultWorldEntitySpawner : IWorldEntitySpawner, IWorldEntitySyncSp
         TechType techType = entity.TechType.ToUnity();
 
         TaskResult<GameObject> gameObjectResult = new();
-        yield return CreateGameObject(techType, entity.ClassId, entity.Id, gameObjectResult);
+        yield return CreateGameObject(techType, entity.ClassId, gameObjectResult);
 
         GameObject gameObject = gameObjectResult.Get();
         SetupObject(entity, parent, gameObject, cellRoot, techType);
@@ -35,6 +34,7 @@ public class DefaultWorldEntitySpawner : IWorldEntitySpawner, IWorldEntitySyncSp
         gameObject.transform.rotation = entity.Transform.Rotation.ToUnity();
         gameObject.transform.localScale = entity.Transform.LocalScale.ToUnity();
 
+        NitroxEntity.SetNewId(gameObject, entity.Id);
         CrafterLogic.NotifyCraftEnd(gameObject, techType);
 
         WaterPark parentWaterPark = parent.HasValue ? parent.Value.GetComponent<WaterPark>() : null;
@@ -119,7 +119,7 @@ public class DefaultWorldEntitySpawner : IWorldEntitySpawner, IWorldEntitySyncSp
         result.Set(prefab);
     }
 
-    public static IEnumerator CreateGameObject(TechType techType, string classId, NitroxId nitroxId, TaskResult<GameObject> result)
+    public static IEnumerator CreateGameObject(TechType techType, string classId, TaskResult<GameObject> result)
     {
         IPrefabRequest prefabCoroutine = PrefabDatabase.GetPrefabAsync(classId);
         yield return prefabCoroutine;
@@ -134,7 +134,7 @@ public class DefaultWorldEntitySpawner : IWorldEntitySpawner, IWorldEntitySyncSp
             prefab = techPrefabCoroutine.GetResult();
             if (!prefab)
             {
-                result.Set(CreateGenericLoot(techType, nitroxId));
+                result.Set(Utils.CreateGenericLoot(techType));
                 prefabNotFound.Add((classId, techType));
                 yield break;
             }
@@ -144,22 +144,22 @@ public class DefaultWorldEntitySpawner : IWorldEntitySpawner, IWorldEntitySyncSp
             }
         }
 
-        result.Set(SpawnFromPrefab(prefab, nitroxId));
+        result.Set(Utils.SpawnFromPrefab(prefab, null));
     }
 
     /// <summary>
     /// Looks in prefab cache and creates a GameObject out of it if possible, or returns false.
     /// </summary>
-    public static bool TryCreateGameObjectSync(TechType techType, string classId, NitroxId nitroxId, out GameObject gameObject)
+    public static bool TryCreateGameObjectSync(TechType techType, string classId, out GameObject gameObject)
     {
         if (prefabNotFound.Contains((classId, techType)))
         {
-            gameObject = CreateGenericLoot(techType, nitroxId);
+            gameObject = Utils.CreateGenericLoot(techType);
             return true;
         }
         else if (TryGetCachedPrefab(out GameObject prefab, techType, classId))
         {
-            gameObject = SpawnFromPrefab(prefab, nitroxId);
+            gameObject = Utils.SpawnFromPrefab(prefab, null);
             return true;
         }
         gameObject = null;
@@ -170,7 +170,7 @@ public class DefaultWorldEntitySpawner : IWorldEntitySpawner, IWorldEntitySyncSp
     {
         TechType techType = entity.TechType.ToUnity();
         
-        if (TryCreateGameObjectSync(techType, entity.ClassId, entity.Id, out GameObject gameObject))
+        if (TryCreateGameObjectSync(techType, entity.ClassId, out GameObject gameObject))
         {
             SetupObject(entity, parent, gameObject, cellRoot, techType);
             result.Set(gameObject);
@@ -180,5 +180,8 @@ public class DefaultWorldEntitySpawner : IWorldEntitySpawner, IWorldEntitySyncSp
         return false;
     }
 
-    public bool SpawnsOwnChildren() => false;
+    public bool SpawnsOwnChildren()
+    {
+        return false;
+    }
 }

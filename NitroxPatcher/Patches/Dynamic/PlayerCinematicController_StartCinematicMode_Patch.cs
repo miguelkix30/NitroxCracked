@@ -2,7 +2,7 @@ using System.Reflection;
 using NitroxClient.Communication.Abstract;
 using NitroxClient.GameLogic.PlayerLogic;
 using NitroxClient.MonoBehaviours;
-using NitroxClient.MonoBehaviours.CinematicController;
+using NitroxClient.MonoBehaviours.Overrides;
 using NitroxClient.Unity.Helper;
 using NitroxModel.Helper;
 
@@ -21,17 +21,11 @@ public sealed partial class PlayerCinematicController_StartCinematicMode_Patch :
 
         if (!__instance.TryGetComponentInParent(out NitroxEntity entity, true))
         {
-            Log.Warn($"[{nameof(PlayerCinematicController_StartCinematicMode_Patch)}] - No NitroxEntity for \"{__instance.gameObject.GetFullHierarchyPath()}\" found!");
+            Log.Warn($"[{nameof(PlayerCinematicController_StartCinematicMode_Patch)}] - No NitroxEntity for \"{__instance.GetFullHierarchyPath()}\" found!");
             return;
         }
 
-        if (!__instance.TryGetComponent(out MultiplayerCinematicController multiplayerCinematicController))
-        {
-            Log.Error($"[{nameof(PlayerCinematicController_StartCinematicMode_Patch)}] - No MultiplayerCinematicController for \"{__instance.gameObject.GetFullHierarchyPath()}\" found!");
-            return;
-        }
-
-        multiplayerCinematicController.CallAllCinematicModeEnd();
+        __instance.GetComponent<MultiplayerCinematicController>().CallAllCinematicModeEnd();
 
         int identifier = MultiplayerCinematicReference.GetCinematicControllerIdentifier(__instance.gameObject, entity.gameObject);
         Resolve<PlayerCinematics>().StartCinematicMode(Resolve<IMultiplayerSession>().Reservation.PlayerId, entity.Id, identifier, __instance.playerViewAnimationName);

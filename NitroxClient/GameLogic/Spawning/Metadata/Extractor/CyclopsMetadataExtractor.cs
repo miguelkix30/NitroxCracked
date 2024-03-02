@@ -1,12 +1,11 @@
-using NitroxClient.GameLogic.Spawning.Metadata.Extractor.Abstract;
-using NitroxClient.Unity.Helper;
 using NitroxModel.DataStructures.GameLogic.Entities.Metadata;
+using NitroxClient.Unity.Helper;
 using UnityEngine;
 using static NitroxClient.GameLogic.Spawning.Metadata.Extractor.CyclopsMetadataExtractor;
 
 namespace NitroxClient.GameLogic.Spawning.Metadata.Extractor;
 
-public class CyclopsMetadataExtractor : EntityMetadataExtractor<CyclopsGameObject, CyclopsMetadata>
+public class CyclopsMetadataExtractor : GenericEntityMetadataExtractor<CyclopsGameObject, CyclopsMetadata>
 {
     public override CyclopsMetadata Extract(CyclopsGameObject cyclops)
     {

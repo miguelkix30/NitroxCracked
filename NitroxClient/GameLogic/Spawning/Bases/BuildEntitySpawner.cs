@@ -5,7 +5,6 @@ using System.Linq;
 using NitroxClient.GameLogic.Bases;
 using NitroxClient.GameLogic.Helper;
 using NitroxClient.GameLogic.Spawning.Abstract;
-using NitroxClient.GameLogic.Spawning.Metadata;
 using NitroxClient.MonoBehaviours;
 using NitroxModel.DataStructures;
 using NitroxModel.DataStructures.GameLogic;
@@ -21,12 +20,10 @@ namespace NitroxClient.GameLogic.Spawning.Bases;
 public class BuildEntitySpawner : EntitySpawner<BuildEntity>
 {
     private readonly Entities entities;
-    private readonly BaseLeakEntitySpawner baseLeakEntitySpawner;
 
-    public BuildEntitySpawner(Entities entities, BaseLeakEntitySpawner baseLeakEntitySpawner)
+    public BuildEntitySpawner(Entities entities)
     {
         this.entities = entities;
-        this.baseLeakEntitySpawner = baseLeakEntitySpawner;
     }
 
     protected override IEnumerator SpawnAsync(BuildEntity entity, TaskResult<Optional<GameObject>> result)
@@ -52,34 +49,16 @@ public class BuildEntitySpawner : EntitySpawner<BuildEntity>
 #endif
         yield return entities.SpawnBatchAsync(entity.ChildEntities.OfType<PlayerWorldEntity>().ToList<Entity>());
         yield return MoonpoolManager.RestoreMoonpools(entity.ChildEntities.OfType<MoonpoolEntity>(), @base);
-
-        TaskResult<Optional<GameObject>> childResult = new();
-        bool atLeastOneLeak = false;
-        foreach (Entity childEntity in entity.ChildEntities)
+        foreach (MapRoomEntity mapRoomEntity in entity.ChildEntities.OfType<MapRoomEntity>())
         {
-            switch (childEntity)
-            {
-                case MapRoomEntity mapRoomEntity:
-                    yield return InteriorPieceEntitySpawner.RestoreMapRoom(@base, mapRoomEntity);
-                    break;
-                case BaseLeakEntity baseLeakEntity:
-                    atLeastOneLeak = true;
-                    yield return baseLeakEntitySpawner.SpawnAsync(baseLeakEntity, childResult);
-                    break;
-            }
+            yield return InteriorPieceEntitySpawner.RestoreMapRoom(@base, mapRoomEntity);
         }
-        if (atLeastOneLeak)
-        {
-            BaseHullStrength baseHullStrength = @base.GetComponent<BaseHullStrength>();
-            ErrorMessage.AddMessage(Language.main.GetFormat("BaseHullStrDamageDetected", baseHullStrength.totalStrength));
-        }
-
         result.Set(@base.gameObject);
     }
 
     protected override bool SpawnsOwnChildren(BuildEntity entity) => true;
 
-    public static BuildEntity From(Base targetBase, EntityMetadataManager entityMetadataManager)
+    public static BuildEntity From(Base targetBase)
     {
         BuildEntity buildEntity = BuildEntity.MakeEmpty();
         if (targetBase.TryGetNitroxId(out NitroxId baseId))
@@ -90,7 +69,7 @@ public class BuildEntitySpawner : EntitySpawner<BuildEntity>
         buildEntity.Transform = targetBase.transform.ToLocalDto();
 
         buildEntity.BaseData = GetBaseData(targetBase);
-        buildEntity.ChildEntities.AddRange(BuildUtils.GetChildEntities(targetBase, baseId, entityMetadataManager));
+        buildEntity.ChildEntities.AddRange(BuildUtils.GetChildEntities(targetBase, baseId));
 
         return buildEntity;
     }
@@ -136,21 +115,16 @@ public class BuildEntitySpawner : EntitySpawner<BuildEntity>
         // Ghosts need an active base to be correctly spawned onto it
         // While the rest must be spawned earlier for the base to load correctly (mostly InteriorPieceEntity)
         // Which is why the spawn loops are separated by the SetActive instruction
-        // NB: We aim at spawning very precise entity types (InteriorPieceEntity, ModuleEntity and GlobalRootEntity)
-        // Thus we use GetType() == instead of "is GlobalRootEntity" so that derived types from it aren't selected
         List<GhostEntity> ghostChildrenEntities = new();
         foreach (Entity childEntity in buildEntity.ChildEntities)
         {
-            if (childEntity is InteriorPieceEntity || childEntity is ModuleEntity ||
-                childEntity.GetType() == typeof(GlobalRootEntity))
+            if (childEntity is InteriorPieceEntity || childEntity is ModuleEntity)
             {
-                switch (childEntity)
+                if (childEntity is GhostEntity ghostEntity)
                 {
-                    case GhostEntity ghostEntity:
-                        ghostChildrenEntities.Add(ghostEntity);
-                        continue;
+                    ghostChildrenEntities.Add(ghostEntity);
+                    continue;
                 }
-
                 yield return entities.SpawnEntityAsync(childEntity, true);
             }
         }

@@ -22,7 +22,7 @@ public class RemotelyControlled : MonoBehaviour
 
     public void FixedUpdate()
     {
-        if (swimBehaviour || walkBehaviour || !rigidbody)
+        if (swimBehaviour || walkBehaviour)
         {
             return;
         }

@@ -26,7 +26,6 @@ public class GlobalRootInitialSyncProcessor : InitialSyncProcessor
         // inventory items to them.  Eventually, all of the below processors will become entities on their own
         AddDependency<PlayerInitialSyncProcessor>();
         AddDependency<RemotePlayerInitialSyncProcessor>();
-        AddDependency<StoryGoalInitialSyncProcessor>();
     }
 
     public override IEnumerator Process(InitialPlayerSync packet, WaitScreen.ManualWaitItem waitScreenItem)

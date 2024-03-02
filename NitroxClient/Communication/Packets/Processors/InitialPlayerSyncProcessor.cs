@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using NitroxClient.Communication.Abstract;
@@ -38,17 +38,21 @@ namespace NitroxClient.Communication.Packets.Processors
 
         private IEnumerator ProcessInitialSyncPacket(object sender, EventArgs eventArgs)
         {
-            bool moreProcessorsToRun;
-            do
+            // Some packets should not fire during game session join but only afterwards so that initialized/spawned game objects don't trigger packet sending again.
+            using (PacketSuppressor<PingRenamed>.Suppress())
             {
-                yield return Multiplayer.Main.StartCoroutine(RunPendingProcessors());
-
-                moreProcessorsToRun = alreadyRan.Count < processors.Count;
-                if (moreProcessorsToRun && processorsRanLastCycle == 0)
+                bool moreProcessorsToRun;
+                do
                 {
-                    throw new Exception($"Detected circular dependencies in initial packet sync between: {GetRemainingProcessorsText()}");
-                }
-            } while (moreProcessorsToRun);
+                    yield return Multiplayer.Main.StartCoroutine(RunPendingProcessors());
+
+                    moreProcessorsToRun = alreadyRan.Count < processors.Count;
+                    if (moreProcessorsToRun && processorsRanLastCycle == 0)
+                    {
+                        throw new Exception($"Detected circular dependencies in initial packet sync between: {GetRemainingProcessorsText()}");
+                    }
+                } while (moreProcessorsToRun);
+            }
 
             WaitScreen.Remove(loadingMultiplayerWaitItem);
             Multiplayer.Main.InitialSyncCompleted = true;

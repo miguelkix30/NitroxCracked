@@ -1,8 +1,10 @@
 using NitroxClient.Communication.Abstract;
+using NitroxClient.GameLogic.Helper;
 using NitroxClient.MonoBehaviours;
 using NitroxModel.DataStructures;
 using NitroxModel.DataStructures.GameLogic.Entities;
 using NitroxModel.Packets;
+using NitroxModel_Subnautica.DataStructures;
 using UnityEngine;
 
 namespace NitroxClient.GameLogic;
@@ -40,7 +42,8 @@ public class MobileVehicleBay
 
         NitroxId constructedObjectId = NitroxEntity.GenerateNewId(constructedObject);
 
-        VehicleWorldEntity vehicleEntity = Vehicles.BuildVehicleWorldEntity(constructedObject, constructedObjectId, techType, constructorId);
+        VehicleWorldEntity vehicleEntity = new(constructorId, DayNightCycle.main.timePassedAsFloat, constructedObject.transform.ToLocalDto(), string.Empty, false, constructedObjectId, techType.ToDto(), null);
+        VehicleChildEntityHelper.PopulateChildren(constructedObjectId, constructedObject.GetFullHierarchyPath(), vehicleEntity.ChildEntities, constructedObject);
 
         packetSender.Send(new EntitySpawnedByClient(vehicleEntity));
 

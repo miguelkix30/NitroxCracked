@@ -36,7 +36,7 @@ public class BuildingManager
                 return false;
             }
 
-            worldEntityManager.AddOrUpdateGlobalRootEntity(ghostEntity);
+            worldEntityManager.AddGlobalRootEntity(ghostEntity);
             return true;
         }
 
@@ -56,7 +56,8 @@ public class BuildingManager
             return false;
         }
 
-        worldEntityManager.AddOrUpdateGlobalRootEntity(ghostEntity);
+        parentEntity.ChildEntities.Add(ghostEntity);
+        worldEntityManager.AddGlobalRootEntity(ghostEntity);
         return true;
     }
 
@@ -71,7 +72,7 @@ public class BuildingManager
                 return false;
             }
 
-            worldEntityManager.AddOrUpdateGlobalRootEntity(moduleEntity);
+            worldEntityManager.AddGlobalRootEntity(moduleEntity);
             return true;
         }
 
@@ -91,7 +92,8 @@ public class BuildingManager
             return false;
         }
 
-        worldEntityManager.AddOrUpdateGlobalRootEntity(moduleEntity);
+        parentEntity.ChildEntities.Add(moduleEntity);
+        worldEntityManager.AddGlobalRootEntity(moduleEntity);
         return true;
     }
 
@@ -139,7 +141,7 @@ public class BuildingManager
         }
 
         worldEntityManager.RemoveGlobalRootEntity(entity.Id);
-        worldEntityManager.AddOrUpdateGlobalRootEntity(placeBase.BuildEntity);
+        worldEntityManager.AddGlobalRootEntity(placeBase.BuildEntity);
         return true;
     }
 
@@ -193,7 +195,8 @@ public class BuildingManager
 
         if (updateBase.BuiltPieceEntity != null && updateBase.BuiltPieceEntity is GlobalRootEntity builtPieceEntity)
         {
-            worldEntityManager.AddOrUpdateGlobalRootEntity(builtPieceEntity);
+            worldEntityManager.AddGlobalRootEntity(builtPieceEntity);
+            buildEntity.ChildEntities.Add(builtPieceEntity);
         }
 
         if (updateBase.ChildrenTransfer.Item1 != null && updateBase.ChildrenTransfer.Item2 != null)
@@ -228,7 +231,7 @@ public class BuildingManager
         }
 
         worldEntityManager.RemoveGlobalRootEntity(baseDeconstructed.FormerBaseId);
-        worldEntityManager.AddOrUpdateGlobalRootEntity(baseDeconstructed.ReplacerGhost);
+        worldEntityManager.AddGlobalRootEntity(baseDeconstructed.ReplacerGhost);
         return true;
     }
 
@@ -262,7 +265,8 @@ public class BuildingManager
         removedEntity = worldEntityManager.RemoveGlobalRootEntity(pieceDeconstructed.PieceId).Value;
         GhostEntity ghostEntity = pieceDeconstructed.ReplacerGhost;
         
-        worldEntityManager.AddOrUpdateGlobalRootEntity(ghostEntity);
+        worldEntityManager.AddGlobalRootEntity(ghostEntity);
+        buildEntity.ChildEntities.Add(ghostEntity);
         buildEntity.BaseData = pieceDeconstructed.BaseData;
         buildEntity.OperationId++;
         operationId = buildEntity.OperationId;
@@ -282,7 +286,8 @@ public class BuildingManager
             return false;
         }
         InteriorPieceEntity newPiece = waterParkDeconstructed.NewWaterPark;
-        worldEntityManager.AddOrUpdateGlobalRootEntity(newPiece);
+        worldEntityManager.AddGlobalRootEntity(newPiece);
+        buildEntity.ChildEntities.Add(newPiece);
 
         foreach (NitroxId childId in waterParkDeconstructed.MovedChildrenIds)
         {

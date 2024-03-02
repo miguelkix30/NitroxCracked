@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using NitroxModel.DataStructures;
 using NitroxModel.DataStructures.GameLogic;
 
@@ -7,9 +7,6 @@ namespace NitroxModel.Helper
     public interface IMap
     {
         public int BatchSize { get; }
-        /// <summary>
-        /// AKA LargeWorldStreamer.blocksPerBatch
-        /// </summary>
         public NitroxInt3 BatchDimensions { get; }
         public NitroxInt3 DimensionsInMeters { get; }
         public NitroxInt3 DimensionsInBatches { get; }

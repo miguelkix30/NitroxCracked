@@ -1,8 +1,7 @@
-using System.Reflection;
+﻿using System.Reflection;
 using NitroxClient.GameLogic.FMOD;
 using NitroxClient.MonoBehaviours;
 using NitroxClient.Unity.Helper;
-using NitroxModel.GameLogic.FMOD;
 using NitroxModel.Helper;
 
 namespace NitroxPatcher.Patches.Dynamic;
@@ -13,19 +12,17 @@ public sealed partial class FMOD_CustomLoopingEmitter_PlayStopSound_Patch : Nitr
 
     public static bool Prefix()
     {
-        return !FMODSoundSuppressor.SuppressFMODEvents;
+        return !FMODSuppressor.SuppressFMODEvents;
     }
 
     public static void Postfix(FMOD_CustomLoopingEmitter __instance)
     {
-        if (!__instance.assetStop || !Resolve<FMODWhitelist>().IsWhitelisted(__instance.assetStop.path))
+        if (__instance.assetStop && Resolve<FMODSystem>().IsWhitelisted(__instance.assetStop.path))
         {
-            return;
-        }
-
-        if (__instance.TryGetComponentInParent(out NitroxEntity nitroxEntity, true))
-        {
-            Resolve<FMODSystem>().SendCustomLoopingEmitterPlay(nitroxEntity.Id, __instance.assetStop.path);
+            if (__instance.TryGetComponentInParent(out NitroxEntity nitroxEntity))
+            {
+                Resolve<FMODSystem>().PlayCustomLoopingEmitter(nitroxEntity.Id, __instance.assetStop.path);
+            }
         }
     }
 }

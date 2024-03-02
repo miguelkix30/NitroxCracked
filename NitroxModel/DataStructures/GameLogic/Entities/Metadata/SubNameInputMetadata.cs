@@ -7,10 +7,13 @@ namespace NitroxModel.DataStructures.GameLogic.Entities.Metadata;
 
 [Serializable]
 [DataContract]
-public class SubNameInputMetadata : NamedColoredMetadata
+public class SubNameInputMetadata : EntityMetadata
 {
     [DataMember(Order = 1)]
-    public int SelectedColorIndex { get; }
+    public string Name { get; }
+
+    [DataMember(Order = 2)]
+    public NitroxVector3[] Colors { get; }
 
     [IgnoreConstructor]
     protected SubNameInputMetadata()
@@ -18,13 +21,14 @@ public class SubNameInputMetadata : NamedColoredMetadata
         // Constructor for serialization. Has to be "protected" for json serialization.
     }
 
-    public SubNameInputMetadata(int selectedColorIndex, string name, NitroxVector3[] colors) : base(name, colors)
+    public SubNameInputMetadata(string name, NitroxVector3[] colors)
     {
-        SelectedColorIndex = selectedColorIndex;
+        Name = name;
+        Colors = colors;
     }
 
     public override string ToString()
     {
-        return $"[{nameof(SubNameInputMetadata)} SelectedColorIndex: {SelectedColorIndex} {base.ToString()}]";
+        return $"[SubNameInputMetadata Name: {Name}, Colors: {Colors}]";
     }
 }

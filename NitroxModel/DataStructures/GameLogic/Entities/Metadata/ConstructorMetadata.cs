@@ -20,9 +20,4 @@ public class ConstructorMetadata : EntityMetadata
     {
         Deployed = deployed;
     }
-
-    public override string ToString()
-    {
-        return $"[ConstructorMetadata Deployed: {Deployed}]";
-    }
 }

@@ -8,6 +8,8 @@ using NitroxServer.Communication.Packets.Processors;
 using NitroxServer.Communication.Packets.Processors.Abstract;
 using NitroxServer.ConsoleCommands.Abstract;
 using NitroxServer.ConsoleCommands.Processor;
+using NitroxServer.GameLogic;
+using NitroxServer.GameLogic.Entities;
 using NitroxServer.Serialization.Upgrade;
 using NitroxServer.Serialization.World;
 
@@ -28,8 +30,11 @@ namespace NitroxServer
         {
             containerBuilder.Register(c => Server.ServerStartHandler()).SingleInstance();
             containerBuilder.RegisterType<Server>().SingleInstance();
+            containerBuilder.RegisterType<PlayerManager>().SingleInstance();
             containerBuilder.RegisterType<DefaultServerPacketProcessor>().InstancePerLifetimeScope();
             containerBuilder.RegisterType<PacketHandler>().InstancePerLifetimeScope();
+            containerBuilder.RegisterType<EscapePodManager>().InstancePerLifetimeScope();
+            containerBuilder.RegisterType<EntitySimulation>().SingleInstance();
             containerBuilder.RegisterType<ConsoleCommandProcessor>().SingleInstance();
 
             containerBuilder.RegisterType<LiteNetLibServer>()
@@ -50,8 +55,6 @@ namespace NitroxServer
             containerBuilder.Register(c => c.Resolve<World>().SimulationOwnershipData).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().WorldEntityManager).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().EntityRegistry).SingleInstance();
-            containerBuilder.Register(c => c.Resolve<World>().EntitySimulation).SingleInstance();
-            containerBuilder.Register(c => c.Resolve<World>().EscapePodManager).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().BatchEntitySpawner).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().GameData).SingleInstance();
             containerBuilder.Register(c => c.Resolve<World>().GameData.PDAState).SingleInstance();

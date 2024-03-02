@@ -11,7 +11,7 @@ namespace NitroxServer.GameLogic;
 /// <summary>
 /// Keeps track of time and Aurora-related events.
 /// </summary>
-public class StoryManager : IDisposable
+public class StoryManager
 {
     private readonly PlayerManager playerManager;
     private readonly PDAStateData pdaStateData;
@@ -31,15 +31,10 @@ public class StoryManager : IDisposable
     /// </summary>
     public double AuroraWarningTimeMs;
 
-    /// <summary>
-    /// In seconds
-    /// </summary>
-    public double AuroraRealExplosionTime;
-
     private double ElapsedMilliseconds => timeKeeper.ElapsedMilliseconds;
     private double ElapsedSeconds => timeKeeper.ElapsedSeconds;
 
-    public StoryManager(PlayerManager playerManager, PDAStateData pdaStateData, StoryGoalData storyGoalData, TimeKeeper timeKeeper, string seed, double? auroraExplosionTime, double? auroraWarningTime, double? auroraRealExplosionTime)
+    public StoryManager(PlayerManager playerManager, PDAStateData pdaStateData, StoryGoalData storyGoalData, TimeKeeper timeKeeper, string seed, double? auroraExplosionTime, double? auroraWarningTime)
     {
         this.playerManager = playerManager;
         this.pdaStateData = pdaStateData;
@@ -49,27 +44,6 @@ public class StoryManager : IDisposable
         
         AuroraCountdownTimeMs = auroraExplosionTime ?? GenerateDeterministicAuroraTime(seed);
         AuroraWarningTimeMs = auroraWarningTime ?? ElapsedMilliseconds;
-        // +27 is from CrashedShipExploder.IsExploded, -480 is from the default time (see TimeKeeper)
-        AuroraRealExplosionTime = auroraRealExplosionTime ?? AuroraCountdownTimeMs * 0.001 + 27 - TimeKeeper.DEFAULT_TIME;
-
-        timeKeeper.TimeSkipped += ReadjustAuroraRealExplosionTime;
-    }
-
-    public void ReadjustAuroraRealExplosionTime(double skipAmount)
-    {
-        // Readjust the aurora real explosion time when time skipping because it's based on in-game time
-        if (AuroraRealExplosionTime > timeKeeper.RealTimeElapsed)
-        {
-            double newTime = timeKeeper.RealTimeElapsed + skipAmount;
-            if (newTime > AuroraRealExplosionTime)
-            {
-                AuroraRealExplosionTime = timeKeeper.RealTimeElapsed;
-            }
-            else
-            {
-                AuroraRealExplosionTime -= skipAmount;
-            }
-        }
     }
 
     /// <param name="instantaneous">Whether we should make Aurora explode instantly or after a short countdown</param>
@@ -79,7 +53,6 @@ public class StoryManager : IDisposable
         // We add 3 seconds to the cooldown (Subnautica adds only 1) so that players have enough time to receive the packet and process it
         AuroraCountdownTimeMs = ElapsedMilliseconds + 3000;
         AuroraWarningTimeMs = AuroraCountdownTimeMs;
-        AuroraRealExplosionTime = timeKeeper.RealTimeElapsed + 30; // 27 + 3
 
         if (instantaneous)
         {
@@ -88,7 +61,6 @@ public class StoryManager : IDisposable
             AuroraCountdownTimeMs -= 25000;
             // Is 1 second less than countdown time to have the game understand that we only want the explosion.
             AuroraWarningTimeMs = AuroraCountdownTimeMs - 1000;
-            AuroraRealExplosionTime -= 25;
             Log.Info("Aurora's explosion initiated");
         }
         else
@@ -103,8 +75,6 @@ public class StoryManager : IDisposable
     {
         AuroraWarningTimeMs = ElapsedMilliseconds;
         AuroraCountdownTimeMs = GenerateDeterministicAuroraTime(seed);
-        // Current time + deltaTime before countdown + 27 seconds before explosion
-        AuroraRealExplosionTime = timeKeeper.RealTimeElapsed + (AuroraCountdownTimeMs - timeKeeper.ElapsedMilliseconds) * 0.001 + 27;
 
         // We need to clear these entries from PdaLog and CompletedGoals to make sure that the client, when reconnecting, doesn't have false information
         foreach (string eventKey in AuroraEventData.GoalNames)
@@ -189,18 +159,12 @@ public class StoryManager : IDisposable
 
     public AuroraEventData MakeAuroraData()
     {
-        return new((float)AuroraCountdownTimeMs * 0.001f, (float)AuroraWarningTimeMs * 0.001f, (float)AuroraRealExplosionTime);
+        return new((float)AuroraCountdownTimeMs * 0.001f, (float)AuroraWarningTimeMs * 0.001f);
     }
 
     public TimeData GetTimeData()
     {
         return new(timeKeeper.MakeTimePacket(), MakeAuroraData());
-    }
-
-    public void Dispose()
-    {
-        timeKeeper.TimeSkipped -= ReadjustAuroraRealExplosionTime;
-        GC.SuppressFinalize(this);
     }
 
     public enum TimeModification

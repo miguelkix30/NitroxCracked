@@ -12,12 +12,11 @@ public sealed partial class FPSCounter_UpdateDisplay_Patch : NitroxPatch, IDynam
 
     public static void Postfix(FPSCounter __instance)
     {
-        if (!Multiplayer.Active)
+        if (!Multiplayer.Main.InitialSyncCompleted)
         {
             return;
         }
         __instance.strBuffer.Append("Loading entities: ").AppendLine(Resolve<Entities>().EntitiesToSpawn.Count.ToString());
-        __instance.strBuffer.Append("Real time elapsed: ").AppendLine(Resolve<TimeManager>().RealTimeElapsed.ToString());
         __instance.text.SetText(__instance.strBuffer);
     }
 }
